@@ -1,0 +1,12 @@
+# Legacy in-folder runtime config. Current versions use the platform config
+# directory (XDG_CONFIG_HOME on Linux or LOCALAPPDATA on Windows).
+config.json
+config.json.tmp-*
+
+# User-managed credential file. Never commit or distribute it with a key.
+api-key.txt
+api-key.txt.tmp-*
+
+# Local launcher/runtime artifacts, if paths are overridden into this folder.
+*.pid
+*.log
