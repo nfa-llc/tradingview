@@ -1,4 +1,30 @@
-# gexbot TradingView v1.0 — Linux and Windows
+# gexbot TradingView v1.0
+
+## Source-available license notice
+
+Copyright © Not Financial Advice, LLC. All rights reserved.
+
+This TradingView integration is source available. It is not open-source software.
+
+This TradingView integration is licensed under the PolyForm Noncommercial License 1.0.0.
+
+You may use, copy, modify, and share this integration only for noncommercial purposes and only in accordance with that license.
+
+Commercial use is not permitted without a separate written commercial license from Not Financial Advice, LLC.
+
+For clarity, prohibited commercial use includes, without limitation:
+
+- using, modifying, adapting, or distributing this integration in connection with any paid product, paid service, subscription service, brokerage service, trading platform, market-data service, analytics service, signal service, or other commercial offering;
+- replacing, adapting, or configuring the integration to operate with a third-party or competing commercial data feed;
+- incorporating the integration or any portion of it into a product or service offered to customers, subscribers, clients, or users for commercial advantage;
+- white-labeling, reselling, sublicensing, or commercially hosting the integration; and
+- using the integration to develop, test, market, or support a competing commercial integration.
+
+PolyForm Noncommercial License 1.0.0:
+
+<https://polyformproject.org/licenses/noncommercial/1.0.0>
+
+Commercial licenses are available only under a separate written agreement.
 
 This cross-platform integration plots GEX, Gamma, Vanna, and Charm exposure profiles on TradingView Desktop charts. It supports multi-pane layouts, multiple expirations, configurable Majors, futures conversion, and expanded Quant ticker coverage.
 
@@ -147,4 +173,4 @@ Logs are stored at:
 
 ## License
 
-Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+The [PolyForm Noncommercial License 1.0.0](LICENSE) and the source-available license notice at the top of this README apply to this integration.

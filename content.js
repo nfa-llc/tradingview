@@ -1,3 +1,15 @@
+/*
+ * Copyright © Not Financial Advice, LLC. All rights reserved.
+ *
+ * This source-available TradingView integration is licensed under the PolyForm
+ * Noncommercial License 1.0.0. You may use, copy, modify, and share it only
+ * for noncommercial purposes and only in accordance with that license.
+ * Commercial use is not permitted without a separate written commercial
+ * license from Not Financial Advice, LLC.
+ *
+ * License: https://polyformproject.org/licenses/noncommercial/1.0.0
+ */
+
 // Isolated-world overlay for TradingView. Draws gexbot profiles (per-strike
 // bars + prior dots) and major levels over every chart using price↔pixel mappings
 // from injected.js. Credentials remain exclusively in the Node companion.
