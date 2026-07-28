@@ -38,16 +38,20 @@ This cross-platform integration plots GEX, Gamma, Vanna, and Charm exposure prof
 
 Create a custom gexbot API key from the [Connections page](https://www.gexbot.com/user/connections).
 
-Open `api-key.txt` beside `companion.js` and put the key on the first line with no quotes or extra text. Create the file if it does not exist.
+Configure the included example file:
 
-Linux:
+1. Open `api-key.txt.example` beside `companion.js`.
+2. Replace `gexbot_custom_hashstringhere` with your custom API key.
+3. Save the file.
+4. Rename the file to `api-key.txt`.
+
+Put only the API key on the first line. Do not use quotes or extra text.
+
+On Linux, restrict access to the configured file:
 
 ```bash
-nano api-key.txt
 chmod 600 api-key.txt
 ```
-
-Windows: edit `api-key.txt` in Notepad.
 
 Restart the integration after changing the key.
 
@@ -74,21 +78,7 @@ Windows:
 gexbot-v1.0.bat
 ```
 
-### Custom TradingView executable
-
-Linux:
-
-```bash
-TRADINGVIEW_BIN=/full/path/to/TradingView.AppImage ./gexbot-v1.0.sh
-```
-
-Windows PowerShell, before running `gexbot-v1.0.bat`:
-
-```powershell
-$env:TRADINGVIEW_BIN = "C:\Path\To\TradingView.exe"
-```
-
-Without an override, Linux detects common native, Snap, and Flatpak installations. Windows detects the `TradingView.Desktop` MSIX package.
+The launcher detects the installed TradingView Desktop application automatically. Linux supports common native, Snap, and Flatpak installations. Windows supports the `TradingView.Desktop` Microsoft Store package.
 
 ## Linux sandbox fallback
 

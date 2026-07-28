@@ -61,7 +61,7 @@ exit /b 1
 set "IOF_NODE=node"
 echo   Node %NODEVER% OK. Starting TradingView and the companion...
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0platform\windows\start.ps1" -RootDir "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0platform\windows\start.ps1" -RootDir "%~dp0."
 if errorlevel 1 (
   echo.
   echo   [ERROR] Startup failed; see the message above.
