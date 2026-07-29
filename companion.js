@@ -298,6 +298,8 @@ function buildInjectedBundle() {
 
 // ---- gexbot API -------------------------------------------------------------
 const BASE = "https://api.gex.bot/v2";
+const TRADINGVIEW_INTEGRATION = "tradingview";
+const TRADINGVIEW_PLUGIN_HEADER = "gexbot-tradingview-v1.0";
 const NORMAL_TICKERS_URL = "https://api.gexbot.com/tickers";
 const QUANT_TICKERS_URL = "https://api.gex.bot/tickers/quant";
 
@@ -307,6 +309,7 @@ async function fetchJson(url, apiKey, signal, label, options = {}) {
         "User-Agent": USER_AGENT,
     };
     if (options.auth !== false) headers.Authorization = `Bearer ${String(apiKey).trim()}`;
+    if (options.plugin) headers["X-gexbot-plugin"] = String(options.plugin);
     if (options.body !== undefined) headers["Content-Type"] = "application/json";
     const response = await fetch(url, {
         signal,
@@ -590,10 +593,11 @@ async function fetchMajorHistory(symbol, mask, apiKey) {
     if (cached?.promise) return cached.promise;
 
     const promise = (async () => {
-        const url = `https://api.gex.bot/hist/majors/${encodeURIComponent(symbol)}/classic/gex_full/${mask}`;
+        const url = `${BASE}/${TRADINGVIEW_INTEGRATION}/hist/${encodeURIComponent(symbol)}/classic/gex_full/majors/${mask}`;
         const response = await fetchJson(url, apiKey, AbortSignal.timeout(REQUEST_TIMEOUT_MS), `${symbol} historical majors`, {
             method: "POST",
             body: range,
+            plugin: TRADINGVIEW_PLUGIN_HEADER,
         });
         if (!Array.isArray(response)) throw new Error("historical majors returned an invalid response");
         const series = { majorPosVol: [], majorNegVol: [], zeroGamma: [] };
