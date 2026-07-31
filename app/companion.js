@@ -30,22 +30,23 @@ const REQUEST_TIMEOUT_MS = boundedNumber(process.env.IOF_REQUEST_TIMEOUT_MS, 10_
 const DEBUG_FAILURE_LIMIT = Math.round(boundedNumber(process.env.IOF_DEBUG_FAILURE_LIMIT, 3, 1, 10));
 const PID_FILE = process.env.IOF_PID_FILE || "";
 const USER_AGENT = "Tradingview";
+const ROOT_DIR = path.resolve(__dirname, "..");
 const ISOLATED_WORLD = "gexbot-tradingview-v1.0";
 const PLATFORM_CONFIG_HOME = process.platform === "win32"
     ? (process.env.LOCALAPPDATA || process.env.APPDATA || path.join(os.homedir(), "AppData", "Local"))
     : (process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"));
 const CONFIG_DIR = process.env.IOF_CONFIG_DIR || path.join(PLATFORM_CONFIG_HOME, "gexbot-tradingview-v1.0");
 const CONFIG_PATH = process.env.IOF_CONFIG_PATH || path.join(CONFIG_DIR, "config.json");
-const API_KEY_PATH = process.env.IOF_API_KEY_PATH || path.join(__dirname, "api-key.txt");
+const API_KEY_PATH = process.env.IOF_API_KEY_PATH || path.join(ROOT_DIR, "api-key.txt");
 const LEGACY_CONFIG_PATHS = [
     path.join(PLATFORM_CONFIG_HOME, "gexbot-tradingview-v2", "config.json"),
-    path.join(__dirname, "config.json"),
-    path.join(__dirname, "gb-tradingview-linux", "config.json"),
-    path.join(__dirname, "gb-tradingview-windows", "config.json"),
+    path.join(ROOT_DIR, "config.json"),
+    path.join(ROOT_DIR, "gb-tradingview-linux", "config.json"),
+    path.join(ROOT_DIR, "gb-tradingview-windows", "config.json"),
 ];
 const LEGACY_API_KEY_PATHS = [
-    path.join(__dirname, "gb-tradingview-linux", "api-key.txt"),
-    path.join(__dirname, "gb-tradingview-windows", "api-key.txt"),
+    path.join(ROOT_DIR, "gb-tradingview-linux", "api-key.txt"),
+    path.join(ROOT_DIR, "gb-tradingview-windows", "api-key.txt"),
 ];
 
 const EXT_DIR = [__dirname, path.join(__dirname, "..")].find((dir) => {

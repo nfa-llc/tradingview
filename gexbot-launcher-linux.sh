@@ -34,7 +34,7 @@ if [[ ! "$NODE_MAJOR" =~ ^[0-9]+$ ]] || (( NODE_MAJOR < 22 )); then
     exit 1
 fi
 
-for file in companion.js expiry-protobuf.js content.js injected.js panel.css platform/linux/start.sh platform/linux/launch-tradingview-debug.sh platform/linux/stop.sh; do
+for file in app/companion.js app/expiry-protobuf.js app/content.js app/injected.js app/panel.css platform/linux/start.sh platform/linux/launch-tradingview-debug.sh; do
     if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
         printf '  [ERROR] Missing file: %s\n' "$file" >&2
         printf '  Keep the complete cross-platform gexbot folder together.\n' >&2

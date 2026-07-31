@@ -66,7 +66,7 @@ IOF_TV_PID_FILE="$TV_PID_FILE" "$SCRIPT_DIR/launch-tradingview-debug.sh" || exit
 
 printf '[gexbot] Starting the gexbot companion...\n'
 printf '\n%s Companion launch\n' "$(date '+%Y-%m-%d %H:%M:%S')" >>"$COMPANION_LOG"
-nohup env IOF_PORT="$IOF_PORT" IOF_PID_FILE="$PID_FILE" "$NODE_BIN" "$ROOT_DIR/companion.js" \
+nohup env IOF_PORT="$IOF_PORT" IOF_PID_FILE="$PID_FILE" "$NODE_BIN" "$ROOT_DIR/app/companion.js" \
     >>"$COMPANION_LOG" 2>&1 </dev/null &
 COMPANION_PID=$!
 printf '%s\n' "$COMPANION_PID" >"$PID_FILE"

@@ -38,12 +38,12 @@ This cross-platform integration plots GEX, Gamma, Vanna, and Charm exposure prof
 
 Create a TradingView gexbot API key from the [Connections page](https://www.gexbot.com/user/connections).
 
-Configure the included example file:
+Configure the included example file from the package root:
 
-1. Open `api-key.txt.example` beside `companion.js`.
-2. Replace `gexbot_tradingview_hashstringhere` with your TradingView API key.
-3. Save the file.
-4. Rename the file to `api-key.txt`.
+1. Copy `docs/api-key.txt.example` to `api-key.txt`.
+2. Open `api-key.txt`.
+3. Replace `gexbot_tradingview_hashstringhere` with your TradingView API key.
+4. Save the file.
 
 Put only the API key on the first line. Do not use quotes or extra text.
 
@@ -69,13 +69,13 @@ Settings are stored at:
 Linux:
 
 ```bash
-./gexbot-v1.0.sh
+./gexbot-launcher-linux.sh
 ```
 
 Windows:
 
 ```text
-gexbot-v1.0.bat
+gexbot-launcher-windows.bat
 ```
 
 The launcher detects the installed TradingView Desktop application automatically. Linux supports common native, Snap, and Flatpak installations. Windows supports the `TradingView.Desktop` Microsoft Store package.
@@ -94,12 +94,7 @@ Remove that file to restore the prompt. Reviewed unattended environments can use
 
 ## Shutdown
 
-Normally, close TradingView when finished.
-
-Recovery commands:
-
-- Linux: `./gexbot-v1.0-stop.sh`
-- Windows: `gexbot-v1.0-stop.bat`
+Close TradingView when finished. The companion shuts down automatically.
 
 ## Chart settings
 
@@ -163,4 +158,4 @@ Logs are stored at:
 
 ## License
 
-The [PolyForm Noncommercial License 1.0.0](LICENSE) and the source-available license notice at the top of this README apply to this integration.
+The [PolyForm Noncommercial License 1.0.0](docs/LICENSE) and the source-available license notice at the top of this README apply to this integration.

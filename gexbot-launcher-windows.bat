@@ -28,7 +28,7 @@ if %NODEMAJ% LSS 22 (
   exit /b 1
 )
 
-for %%f in (companion.js expiry-protobuf.js content.js injected.js panel.css platform\windows\start.ps1 platform\windows\launch-tradingview-debug.ps1 platform\windows\stop.ps1) do (
+for %%f in (app\companion.js app\expiry-protobuf.js app\content.js app\injected.js app\panel.css platform\windows\start.ps1 platform\windows\launch-tradingview-debug.ps1) do (
   if not exist "%~dp0%%f" (
     echo   [ERROR] Missing file: %%f
     echo   Keep the complete cross-platform gexbot folder together.

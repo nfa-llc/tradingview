@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RootDir = (Resolve-Path -LiteralPath $RootDir).Path.TrimEnd("\")
-$companionPath = Join-Path $RootDir "companion.js"
+$companionPath = Join-Path $RootDir "app\companion.js"
 $launcherPath = Join-Path $PSScriptRoot "launch-tradingview-debug.ps1"
 
 $nodeCommand = if ($env:IOF_NODE) { $env:IOF_NODE } else { "node" }
