@@ -30,7 +30,7 @@ This cross-platform integration plots GEX, Gamma, Vanna, and Charm exposure prof
 
 ## Requirements
 
-- TradingView Desktop for Linux or Windows
+- TradingView Desktop for Linux, macOS, or Windows
 - Node.js 22 or newer
 - A gexbot API key
 
@@ -47,7 +47,7 @@ Configure the included example file from the package root:
 
 Put only the API key on the first line. Do not use quotes or extra text.
 
-On Linux, restrict access to the configured file:
+On Linux and macOS, restrict access to the configured file:
 
 ```bash
 chmod 600 api-key.txt
@@ -60,6 +60,7 @@ Restart the integration after changing the key.
 Settings are stored at:
 
 - Linux: `${XDG_CONFIG_HOME:-$HOME/.config}/gexbot-tradingview-v1.0/config.json`
+- macOS: `~/Library/Application Support/gexbot-tradingview-v1.0/config.json`
 - Windows: `%LOCALAPPDATA%\gexbot-tradingview-v1.0\config.json`
 
 `IOF_CONFIG_PATH` or `IOF_CONFIG_DIR` can override the settings location.
@@ -72,13 +73,20 @@ Linux:
 ./gexbot-launcher-linux.sh
 ```
 
+macOS:
+
+1. Open the package folder in Finder.
+2. Double-click `gexbot-launcher-macos.command`.
+
 Windows:
 
 ```text
 gexbot-launcher-windows.bat
 ```
 
-The launcher detects the installed TradingView Desktop application automatically. Linux supports common native, Snap, and Flatpak installations. Windows supports the `TradingView.Desktop` Microsoft Store package.
+The launcher detects the installed TradingView Desktop application automatically. Linux supports common native, Snap, and Flatpak installations. macOS supports the standard Applications folders and Setapp. Windows supports the `TradingView.Desktop` Microsoft Store package.
+
+If macOS blocks the launcher, Control-click `gexbot-launcher-macos.command` and select **Open**. Then select **Open** in the confirmation window.
 
 ## Linux sandbox fallback
 
@@ -154,6 +162,7 @@ If a TradingView update causes a compatibility problem, the settings panel displ
 Logs are stored at:
 
 - Linux: `${XDG_STATE_HOME:-$HOME/.local/state}/gexbot-tradingview-v1.0/`
+- macOS: `~/Library/Logs/gexbot-tradingview-v1.0/`
 - Windows: `%LOCALAPPDATA%\gexbot-tradingview-v1.0\logs\`
 
 ## License

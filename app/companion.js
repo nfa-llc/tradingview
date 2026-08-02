@@ -10,7 +10,7 @@
  * License: https://polyformproject.org/licenses/noncommercial/1.0.0
  */
 
-// gexbot TradingView v1.0 — shared companion for Linux and Windows.
+// gexbot TradingView v1.0 — shared companion for Linux, macOS, and Windows.
 //
 // The companion owns credentials and API traffic. The TradingView renderer receives
 // only chart configuration/data through a CDP isolated world; API keys are never
@@ -34,7 +34,9 @@ const ROOT_DIR = path.resolve(__dirname, "..");
 const ISOLATED_WORLD = "gexbot-tradingview-v1.0";
 const PLATFORM_CONFIG_HOME = process.platform === "win32"
     ? (process.env.LOCALAPPDATA || process.env.APPDATA || path.join(os.homedir(), "AppData", "Local"))
-    : (process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"));
+    : process.platform === "darwin"
+        ? path.join(os.homedir(), "Library", "Application Support")
+        : (process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"));
 const CONFIG_DIR = process.env.IOF_CONFIG_DIR || path.join(PLATFORM_CONFIG_HOME, "gexbot-tradingview-v1.0");
 const CONFIG_PATH = process.env.IOF_CONFIG_PATH || path.join(CONFIG_DIR, "config.json");
 const API_KEY_PATH = process.env.IOF_API_KEY_PATH || path.join(ROOT_DIR, "api-key.txt");
@@ -197,7 +199,7 @@ function loadConfigs() {
 
     // One-time migration from versions that stored the key in config.json.
     // The key moves to the ignored local text file; chart settings stay in the
-    // platform config directory (XDG_CONFIG_HOME or LOCALAPPDATA).
+    // platform config directory (XDG_CONFIG_HOME, Application Support, or LOCALAPPDATA).
     const fileApiKey = readApiKeyFile();
     let legacyFileApiKey = "";
     let legacyApiKeyPath = null;
