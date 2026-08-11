@@ -38,9 +38,9 @@ This cross-platform integration plots GEX, Gamma, Vanna, and Charm exposure prof
 
 Create a TradingView gexbot API key from the [Connections page](https://www.gexbot.com/user/connections).
 
-Configure the included example file from the package root:
+Configure the included example file in the package root:
 
-1. Copy `docs/api-key.txt.example` to `api-key.txt`.
+1. Copy `api-key.txt.example` to `api-key.txt`.
 2. Open `api-key.txt`.
 3. Replace `gexbot_tradingview_hashstringhere` with your TradingView API key.
 4. Save the file.
