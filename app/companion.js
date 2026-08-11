@@ -83,6 +83,7 @@ const STANDARD_PROFILE_AGGREGATIONS = new Map([
     ["s_gex", new Set(["zero", "one", "full"])],
     ["s_gamma", new Set(["zero", "one"])],
 ]);
+const MAJORS_ONLY_SOURCE_IDS = new Set(["vol", "oi", "s_gex"]);
 let configs = {};
 let globalApiKey = "";
 let tickerListCache = null;
@@ -459,6 +460,21 @@ function gammaSource(response) {
     };
 }
 
+/** Convert a Majors endpoint response to a chart source. */
+function majorsSource(response) {
+    return {
+        ts: Number(response.timestamp) || 0,
+        levels: {
+            majorPosVol: response.mpos_vol,
+            majorNegVol: response.mneg_vol,
+            zeroGamma: response.zero_gamma,
+            majorPosOi: response.mpos_oi,
+            majorNegOi: response.mneg_oi,
+        },
+        strikes: [],
+    };
+}
+
 function standardProfileRequest(symbol, profile) {
     const category = classicCategory(profile.agg);
     if (profile.id === "vol" || profile.id === "oi") {
@@ -470,26 +486,46 @@ function standardProfileRequest(symbol, profile) {
     return { route: `${symbol}/state/gamma_${profile.agg}`, kind: "greek" };
 }
 
+/** Build a request for the latest Majors without profile data. */
+function standardMajorsRequest(symbol, major) {
+    const packageName = major.id === "s_gex" ? "state" : "classic";
+    return {
+        route: `${TRADINGVIEW_INTEGRATION}/${symbol}/${packageName}/${classicCategory(major.agg)}/majors`,
+        kind: "majors",
+    };
+}
+
+/** Get the selected Standard profiles and independent Majors. */
 async function fetchData(config, apiKey, signal) {
-    if (!config.profiles.length) return { ts: 0, sources: {} };
+    if (!config.profiles.length && !config.majors.length) return { ts: 0, sources: {} };
     const symbol = encodeURIComponent(config.symbol);
     const byRoute = new Map();
-    for (const profile of config.profiles) {
-        const request = standardProfileRequest(symbol, profile);
+    const addRequest = (request, sourceId) => {
         let entry = byRoute.get(request.route);
         if (!entry) {
-            entry = { ...request, profileIds: [] };
+            entry = { ...request, sourceIds: [] };
             byRoute.set(request.route, entry);
         }
-        entry.profileIds.push(profile.id);
+        if (!entry.sourceIds.includes(sourceId)) entry.sourceIds.push(sourceId);
+    };
+    for (const profile of config.profiles) addRequest(standardProfileRequest(symbol, profile), profile.id);
+
+    const selectedProfiles = new Set(config.profiles.map((profile) => `${profile.id}|${profile.agg}`));
+    for (const major of config.majors) {
+        if (!selectedProfiles.has(`${major.id}|${major.agg}`)) addRequest(standardMajorsRequest(symbol, major), major.id);
     }
 
-    // All selected profiles form one snapshot. If any selected request fails,
-    // cancel its siblings instead of mixing fresh and stale sources.
+    // All selected data forms one snapshot. If one request fails, cancel its
+    // siblings. This prevents a mix of fresh and stale sources.
     const controller = new AbortController();
     const combinedSignal = AbortSignal.any([signal, controller.signal]);
     const entries = [...byRoute.values()];
-    const requests = entries.map((entry) => getJson(entry.route, apiKey, combinedSignal));
+    const requests = entries.map((entry) => entry.kind === "majors"
+        ? fetchJson(`${BASE}/${entry.route}`, apiKey, combinedSignal, entry.route, {
+            method: "POST",
+            plugin: TRADINGVIEW_PLUGIN_HEADER,
+        })
+        : getJson(entry.route, apiKey, combinedSignal));
     let responses;
     try {
         responses = await Promise.all(requests);
@@ -504,8 +540,8 @@ async function fetchData(config, apiKey, signal) {
     for (let index = 0; index < entries.length; index++) {
         const entry = entries[index];
         const response = responses[index];
-        const source = entry.kind === "gex" ? gexSource(response) : gammaSource(response);
-        for (const id of entry.profileIds) sources[id] = source;
+        const source = entry.kind === "gex" ? gexSource(response) : entry.kind === "greek" ? gammaSource(response) : majorsSource(response);
+        for (const id of entry.sourceIds) sources[id] = source;
         timestamp = Math.max(timestamp, Number(response.timestamp) || 0);
     }
     return { ts: timestamp, sources };
@@ -1059,6 +1095,23 @@ function normalizeStandardProfiles(raw, legacyMode, legacyAgg) {
     return result;
 }
 
+/** Validate the sources that use the latest Majors endpoint. */
+function normalizeStandardMajors(raw) {
+    if (!Array.isArray(raw)) return [];
+    const result = [];
+    const seen = new Set();
+    for (const item of raw.slice(0, MAJORS_ONLY_SOURCE_IDS.size)) {
+        if (!item || typeof item !== "object") continue;
+        const id = String(item.id || "");
+        const allowed = STANDARD_PROFILE_AGGREGATIONS.get(id);
+        if (!MAJORS_ONLY_SOURCE_IDS.has(id) || !allowed || seen.has(id)) continue;
+        const agg = allowed.has(item.agg) ? item.agg : "zero";
+        seen.add(id);
+        result.push({ id, agg });
+    }
+    return result;
+}
+
 function normalizeCharts(rawCharts) {
     const result = {};
     if (!rawCharts || typeof rawCharts !== "object" || Array.isArray(rawCharts)) return result;
@@ -1074,15 +1127,16 @@ function normalizeCharts(rawCharts) {
         const standardEnabled = raw.standardEnabled !== false;
         const quantEnabled = raw.quantEnabled !== false;
         const profiles = standardEnabled ? normalizeStandardProfiles(raw.profiles, raw.mode, raw.agg) : [];
+        const majors = standardEnabled ? normalizeStandardMajors(raw.majors) : [];
         const expirations = quantEnabled ? normalizeExpirationSubscriptions(raw.expirations) : [];
-        result[index] = { symbol, futuresTarget, standardEnabled, quantEnabled, profiles, expirations };
+        result[index] = { symbol, futuresTarget, standardEnabled, quantEnabled, profiles, majors, expirations };
     }
     return result;
 }
 
 function restChartEntries(entry) {
     return Object.entries(entry.charts).filter(([, config]) =>
-        config.standardEnabled && !isQuantTicker(config.symbol) && config.profiles.length);
+        config.standardEnabled && !isQuantTicker(config.symbol) && (config.profiles.length || config.majors.length));
 }
 
 function restartTabFetch(tab, entry) {
@@ -1110,6 +1164,7 @@ function setTabFetch(tab, message) {
         futuresTarget: config.futuresTarget,
         standardEnabled: config.standardEnabled,
         profiles: config.profiles,
+        majors: config.majors,
     }]));
     const pollingSignature = JSON.stringify({ charts: pollingCharts, intervalSec });
     const pollingChanged = pollingSignature !== entry.pollingSignature;

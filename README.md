@@ -116,7 +116,7 @@ The Standard tab includes:
 - independent visibility and expiry settings for each profile;
 - 0DTE, 1DTE, and Full expiries where available;
 - alignment, origin, width, thickness, vertical pixel offset, colors, and prior dots;
-- configurable Majors with visibility, color, label placement, line style, and thickness;
+- configurable Majors that do not require their related profiles, with visibility, color, label placement, line style, and thickness;
 - optional intraday Major history as one-minute moving-average lines or raw scatter plots, with independent colors, draw styles, and line/dot thickness;
 - selectable tickers and preset futures pairs with automatically populated conversion values; and
 - manual additive and multiplicative futures conversion.

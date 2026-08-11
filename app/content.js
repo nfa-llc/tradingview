@@ -39,6 +39,7 @@
         s_gamma: { label: "State Gamma Profile",     source: "s_gamma", aggregations: ["zero", "one"],         idx: 3, priorIdx: 4, priorLabels: PRIOR3, def: { show: true, agg: "zero", align: "right", originPct: 90, widthPx: 120, thickness: 2, verticalOffsetPx: 0, posColor: "#22D3EE", negColor: "#A855F7", priors: true,  priorSize: 3, priorColors: PRIOR3C.slice() } },
     };
     const STANDARD_PROFILE_IDS = ["vol", "oi", "s_gex", "s_gamma"];
+    const MAJORS_ONLY_SOURCE_IDS = new Set(["vol", "oi", "s_gex"]);
     const HISTORY_MAJOR_BITS = { majorPosVol: 1, majorNegVol: 2, zeroGamma: 4 };
     const HISTORY_MAJOR_IDS = Object.keys(HISTORY_MAJOR_BITS);
     const FUTURES_PAIRS = [
@@ -69,6 +70,7 @@
         charm:       { label: "State Charm",     source: "charm", idx: 3, priorIdx: 4, priorLabels: PRIOR3, priorColors: PRIOR3C, colors: ["#34D399", "#FB7185"] },
     };
     const EXPIRY_PROFILE_IDS = Object.keys(EXPIRY_PROFILE_DEFS);
+    const INDEPENDENT_MAJORS_VERSION = 1;
     const EXPIRY_DEFAULTS_VERSION = 2; // Defaults version 2 migrated the initial 120px width to 50px.
     const NUMK = { originPct: [0, 100], widthPx: [10, 2000], thickness: [1, 20], verticalOffsetPx: [-5000, 5000, 0], priorSize: [1, 12] };
 
@@ -324,6 +326,15 @@
                 chart.levels[id] = true;
                 changed = true;
             }
+        }
+        if (chart.independentMajorsVersion !== INDEPENDENT_MAJORS_VERSION) {
+            // A hidden profile also hid its Majors before independent requests
+            // were available. Preserve the visible result during migration.
+            for (const [id, definition] of Object.entries(LEVEL_DEFS)) {
+                if (!chart.profiles[definition.source]?.show) chart.levels[id] = false;
+            }
+            chart.independentMajorsVersion = INDEPENDENT_MAJORS_VERSION;
+            changed = true;
         }
         const rawQuantProfileTemplate = chart.quantProfileTemplate && typeof chart.quantProfileTemplate === "object" && !Array.isArray(chart.quantProfileTemplate)
             ? chart.quantProfileTemplate
@@ -928,6 +939,18 @@
         }
     }
 
+    /** Get the active sources for latest Majors requests. */
+    function latestMajorSources(chart) {
+        const activeSources = new Set();
+        for (const [id, definition] of Object.entries(LEVEL_DEFS)) {
+            if (!chart.levels[id] && !chart.majorStyles[id]?.history) continue;
+            if (MAJORS_ONLY_SOURCE_IDS.has(definition.source)) activeSources.add(definition.source);
+        }
+        return STANDARD_PROFILE_IDS
+            .filter((id) => activeSources.has(id))
+            .map((id) => ({ id, agg: chart.profiles[id].agg }));
+    }
+
     function sendConfig(force = false) {
         ensurePort();
         const charts = {};
@@ -945,6 +968,7 @@
                 standardEnabled: c.standardEnabled,
                 quantEnabled: c.quantEnabled,
                 profiles,
+                majors: c.standardEnabled ? latestMajorSources(c) : [],
                 expirations,
             };
         }
@@ -1910,7 +1934,11 @@
             lineStyle.value = style.lineStyle;
             if (historyLineStyle) historyLineStyle.value = style.historyLineStyle;
             labelPosition.value = style.labelPosition;
-            show.addEventListener("change", trusted(() => { c.levels[id] = show.checked; saveConfig(); }));
+            show.addEventListener("change", trusted(() => {
+                c.levels[id] = show.checked;
+                saveConfig();
+                sendConfig();
+            }));
             color.addEventListener("input", trusted(() => { style.color = color.value; saveConfig(); }));
             lineStyle.addEventListener("change", trusted(() => { style.lineStyle = lineStyle.value; saveConfig(); }));
             thickness.addEventListener("input", trusted(() => { style.thickness = clamp(parseFloat(thickness.value), 1, 20); saveConfig(); }));
@@ -1921,6 +1949,7 @@
                     requestMajorHistoryForChart(uiChart, c);
                 } else clearMajorHistorySeries(uiChart, c, id);
                 saveConfig();
+                sendConfig();
             }));
             historyColor?.addEventListener("input", trusted(() => { style.historyColor = historyColor.value; saveConfig(); }));
             historyLineStyle?.addEventListener("change", trusted(() => { style.historyLineStyle = historyLineStyle.value; saveConfig(); }));
