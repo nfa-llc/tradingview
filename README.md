@@ -116,12 +116,12 @@ The Standard tab includes:
 - independent visibility and expiry settings for each profile;
 - 0DTE, 1DTE, and Full expiries where available;
 - alignment, origin, width, thickness, vertical pixel offset, colors, and prior dots;
-- configurable Majors that do not require their related profiles, with visibility, color, label placement, line style, and thickness;
+- configurable Majors that do not require their related profiles, with optional GEX bar magnitudes, visibility, color, label placement, line style, and thickness;
 - optional intraday Major history as one-minute moving-average lines or raw scatter plots, with independent colors, draw styles, and line/dot thickness;
 - selectable tickers and preset futures pairs with automatically populated conversion values; and
 - manual additive and multiplicative futures conversion.
 
-The ticker section is open by default. Profile, Majors, and manual conversion sections are collapsed by default. Standard performs an initial data pull when started, while recurring refreshes run only from 9:30 AM to 4:00 PM Eastern Time on weekdays.
+The ticker section is open by default. Profile, Majors, and manual conversion sections are collapsed by default. **Show GEX magnitude** adds the nearest profile bar magnitude to each Major label. The integration fetches profile data for this value when its profile is hidden, but it does not draw the hidden profile. Standard performs an initial data pull when started, while recurring refreshes run only from 9:30 AM to 4:00 PM Eastern Time on weekdays.
 
 ### Quant
 

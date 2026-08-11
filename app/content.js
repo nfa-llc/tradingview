@@ -199,6 +199,7 @@
             futuresTarget: "",   // "" = index prices; "NQ"/"ES"… = auto-convert via API
             manualConversion: null,
             labelSide: "left", // Legacy fallback for major-label placement.
+            showGexMagnitude: false,
             profiles, levels,
             majorStyles: {},
             quantProfileTemplate: null,
@@ -261,6 +262,7 @@
         }
         if (typeof chart.standardEnabled !== "boolean") { chart.standardEnabled = true; changed = true; }
         if (typeof chart.quantEnabled !== "boolean") { chart.quantEnabled = true; changed = true; }
+        if (typeof chart.showGexMagnitude !== "boolean") { chart.showGexMagnitude = false; changed = true; }
         if (!chart.profiles || typeof chart.profiles !== "object" || Array.isArray(chart.profiles)) {
             chart.profiles = {};
             changed = true;
@@ -967,6 +969,7 @@
                 futuresTarget: c.manualConversion ? "" : c.futuresTarget,
                 standardEnabled: c.standardEnabled,
                 quantEnabled: c.quantEnabled,
+                showGexMagnitude: c.standardEnabled && c.showGexMagnitude,
                 profiles,
                 majors: c.standardEnabled ? latestMajorSources(c) : [],
                 expirations,
@@ -1372,10 +1375,13 @@
                 labelX = left + 6;
                 ctx.textAlign = "left";
             }
+            const magnitudeValue = chart.showGexMagnitude ? src.magnitudes?.[def.vkey] : null;
+            const rawMagnitude = Number(magnitudeValue);
+            const magnitude = magnitudeValue != null && Number.isFinite(rawMagnitude) ? ` - ${fmt(Math.abs(rawMagnitude))}` : "";
             ctx.fillStyle = style.color;
             ctx.font = "11px Consolas, monospace";
             ctx.textBaseline = "middle";
-            ctx.fillText(`${def.label} ${fmt(px)}`, labelX, y - 7);
+            ctx.fillText(`${def.label} ${fmt(px)}${magnitude}`, labelX, y - 7);
         }
     }
 
@@ -1869,7 +1875,10 @@
 
             <details class="iof-settings-group">
                 <summary>Majors</summary>
-                <div class="iof-settings-group-body"><div id="iof-majors">${majorsHtml}</div></div>
+                <div class="iof-settings-group-body">
+                    <label class="iof-check"><input type="checkbox" id="iof-show-gex-magnitude" ${c.showGexMagnitude ? "checked" : ""}><span>Show GEX magnitude</span></label>
+                    <div id="iof-majors">${majorsHtml}</div>
+                </div>
             </details>`;
 
         const $ = (s) => bodyEl.querySelector(s);
@@ -1883,6 +1892,12 @@
 
         bindCommonPanelTabs();
         bindTickerControls(c);
+
+        $("#iof-show-gex-magnitude").addEventListener("change", trusted((event) => {
+            c.showGexMagnitude = event.target.checked;
+            saveConfig();
+            sendConfig();
+        }));
 
         $("#iof-enabled").addEventListener("change", trusted((event) => {
             c.standardEnabled = event.target.checked;

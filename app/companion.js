@@ -433,7 +433,26 @@ async function sendTickerLists(tab, refresh = false) {
 
 const classicCategory = (aggregation) => aggregation === "zero" ? "gex_zero" : aggregation === "one" ? "gex_one" : "gex_full";
 
+/** Get the magnitude of the profile bar nearest to a Major level. */
+function profileBarMagnitude(strikes, valueIndex, level) {
+    const target = Number(level);
+    if (!Number.isFinite(target)) return null;
+    let nearestValue = null;
+    let nearestDistance = Infinity;
+    for (const strike of strikes) {
+        const price = Number(strike?.[0]);
+        const value = Number(strike?.[valueIndex]);
+        if (!Number.isFinite(price) || !Number.isFinite(value)) continue;
+        const distance = Math.abs(price - target);
+        if (distance >= nearestDistance) continue;
+        nearestDistance = distance;
+        nearestValue = value;
+    }
+    return nearestValue == null ? null : Math.abs(nearestValue);
+}
+
 function gexSource(response) {
+    const strikes = Array.isArray(response.strikes) ? response.strikes : [];
     return {
         ts: Number(response.timestamp) || 0,
         levels: {
@@ -443,11 +462,19 @@ function gexSource(response) {
             majorPosOi: response.major_pos_oi,
             majorNegOi: response.major_neg_oi,
         },
-        strikes: Array.isArray(response.strikes) ? response.strikes : [],
+        magnitudes: {
+            majorPosVol: profileBarMagnitude(strikes, 1, response.major_pos_vol),
+            majorNegVol: profileBarMagnitude(strikes, 1, response.major_neg_vol),
+            zeroGamma: profileBarMagnitude(strikes, 1, response.zero_gamma),
+            majorPosOi: profileBarMagnitude(strikes, 2, response.major_pos_oi),
+            majorNegOi: profileBarMagnitude(strikes, 2, response.major_neg_oi),
+        },
+        strikes,
     };
 }
 
 function gammaSource(response) {
+    const strikes = Array.isArray(response.mini_contracts) ? response.mini_contracts : [];
     return {
         ts: Number(response.timestamp) || 0,
         levels: {
@@ -456,7 +483,11 @@ function gammaSource(response) {
             gammaLong: response.major_long_gamma,
             gammaShort: response.major_short_gamma,
         },
-        strikes: Array.isArray(response.mini_contracts) ? response.mini_contracts : [],
+        magnitudes: {
+            gammaLong: profileBarMagnitude(strikes, 3, response.major_long_gamma),
+            gammaShort: profileBarMagnitude(strikes, 3, response.major_short_gamma),
+        },
+        strikes,
     };
 }
 
@@ -512,7 +543,9 @@ async function fetchData(config, apiKey, signal) {
 
     const selectedProfiles = new Set(config.profiles.map((profile) => `${profile.id}|${profile.agg}`));
     for (const major of config.majors) {
-        if (!selectedProfiles.has(`${major.id}|${major.agg}`)) addRequest(standardMajorsRequest(symbol, major), major.id);
+        if (selectedProfiles.has(`${major.id}|${major.agg}`)) continue;
+        const request = config.showGexMagnitude ? standardProfileRequest(symbol, major) : standardMajorsRequest(symbol, major);
+        addRequest(request, major.id);
     }
 
     // All selected data forms one snapshot. If one request fails, cancel its
@@ -1126,10 +1159,11 @@ function normalizeCharts(rawCharts) {
         if (futuresTarget && !["NQ", "ES", "RTY", "YM", "GC", "CL"].includes(futuresTarget)) continue;
         const standardEnabled = raw.standardEnabled !== false;
         const quantEnabled = raw.quantEnabled !== false;
+        const showGexMagnitude = standardEnabled && raw.showGexMagnitude === true;
         const profiles = standardEnabled ? normalizeStandardProfiles(raw.profiles, raw.mode, raw.agg) : [];
         const majors = standardEnabled ? normalizeStandardMajors(raw.majors) : [];
         const expirations = quantEnabled ? normalizeExpirationSubscriptions(raw.expirations) : [];
-        result[index] = { symbol, futuresTarget, standardEnabled, quantEnabled, profiles, majors, expirations };
+        result[index] = { symbol, futuresTarget, standardEnabled, quantEnabled, showGexMagnitude, profiles, majors, expirations };
     }
     return result;
 }
@@ -1163,6 +1197,7 @@ function setTabFetch(tab, message) {
         symbol: config.symbol,
         futuresTarget: config.futuresTarget,
         standardEnabled: config.standardEnabled,
+        showGexMagnitude: config.showGexMagnitude,
         profiles: config.profiles,
         majors: config.majors,
     }]));
