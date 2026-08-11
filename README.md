@@ -40,10 +40,10 @@ Create a TradingView gexbot API key from the [Connections page](https://www.gexb
 
 Configure the included example file in the package root:
 
-1. Copy `api-key.txt.example` to `api-key.txt`.
-2. Open `api-key.txt`.
-3. Replace `gexbot_tradingview_hashstringhere` with your TradingView API key.
-4. Save the file.
+1. Open `api-key-example.txt`.
+2. Replace `gexbot_tradingview_hashstringhere` with your TradingView API key.
+3. Save the file.
+4. Rename `api-key-example.txt` to `api-key.txt`.
 
 Put only the API key on the first line. Do not use quotes or extra text.
 
