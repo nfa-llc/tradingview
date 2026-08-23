@@ -39,7 +39,6 @@
         s_gamma: { label: "State Gamma Profile",     source: "s_gamma", aggregations: ["zero", "one"],         idx: 3, priorIdx: 4, priorLabels: PRIOR3, def: { show: true, agg: "zero", align: "right", originPct: 90, widthPx: 120, thickness: 2, verticalOffsetPx: 0, posColor: "#22D3EE", negColor: "#A855F7", priors: true,  priorSize: 3, priorColors: PRIOR3C.slice() } },
     };
     const STANDARD_PROFILE_IDS = ["vol", "oi", "s_gex", "s_gamma"];
-    const MAJORS_ONLY_SOURCE_IDS = new Set(["vol", "oi", "s_gex"]);
     const HISTORY_MAJOR_BITS = { majorPosVol: 1, majorNegVol: 2, zeroGamma: 4 };
     const HISTORY_MAJOR_IDS = Object.keys(HISTORY_MAJOR_BITS);
     const FUTURES_PAIRS = [
@@ -53,7 +52,6 @@
         zeroGamma:   { source: "vol",     vkey: "zeroGamma",   label: "Zero Gamma",         color: "#E0A94D" },
         majorPosOi:  { source: "oi",      vkey: "majorPosOi",  label: "Major Positive OI",  color: "#3FB950" },
         majorNegOi:  { source: "oi",      vkey: "majorNegOi",  label: "Major Negative OI",  color: "#EC407A" },
-        s_zeroGamma: { source: "s_gex",   vkey: "zeroGamma",   label: "State Zero Gamma",   color: "#E0A94D" },
         s_majPos:    { source: "s_gex",   vkey: "majorPosVol", label: "State Major +",      color: "#2EA05A" },
         s_majNeg:    { source: "s_gex",   vkey: "majorNegVol", label: "State Major −",      color: "#C54A4A" },
         g_long:      { source: "s_gamma", vkey: "gammaLong",   label: "Gamma Long",         color: "#22D3EE" },
@@ -251,6 +249,7 @@
         }
         return base;
     }
+    /** Normalize one chart configuration. */
     function normalizeChartConfig(chart) {
         let changed = false;
         if (Object.prototype.hasOwnProperty.call(chart, "enabled")) {
@@ -318,6 +317,16 @@
         }
         if (!chart.levels || typeof chart.levels !== "object" || Array.isArray(chart.levels)) {
             chart.levels = {};
+            changed = true;
+        }
+        for (const id of Object.keys(chart.majorStyles)) {
+            if (Object.prototype.hasOwnProperty.call(LEVEL_DEFS, id)) continue;
+            delete chart.majorStyles[id];
+            changed = true;
+        }
+        for (const id of Object.keys(chart.levels)) {
+            if (Object.prototype.hasOwnProperty.call(LEVEL_DEFS, id)) continue;
+            delete chart.levels[id];
             changed = true;
         }
         for (const id of Object.keys(LEVEL_DEFS)) {
@@ -946,7 +955,7 @@
         const activeSources = new Set();
         for (const [id, definition] of Object.entries(LEVEL_DEFS)) {
             if (!chart.levels[id] && !chart.majorStyles[id]?.history) continue;
-            if (MAJORS_ONLY_SOURCE_IDS.has(definition.source)) activeSources.add(definition.source);
+            activeSources.add(definition.source);
         }
         return STANDARD_PROFILE_IDS
             .filter((id) => activeSources.has(id))

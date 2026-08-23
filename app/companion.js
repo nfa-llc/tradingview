@@ -83,7 +83,8 @@ const STANDARD_PROFILE_AGGREGATIONS = new Map([
     ["s_gex", new Set(["zero", "one", "full"])],
     ["s_gamma", new Set(["zero", "one"])],
 ]);
-const MAJORS_ONLY_SOURCE_IDS = new Set(["vol", "oi", "s_gex"]);
+const STANDARD_MAJOR_SOURCE_IDS = new Set(STANDARD_PROFILE_AGGREGATIONS.keys());
+const LIGHTWEIGHT_MAJOR_SOURCE_IDS = new Set(["vol", "oi", "s_gex"]);
 let configs = {};
 let globalApiKey = "";
 let tickerListCache = null;
@@ -506,6 +507,7 @@ function majorsSource(response) {
     };
 }
 
+/** Build a request for a Standard profile. */
 function standardProfileRequest(symbol, profile) {
     const category = classicCategory(profile.agg);
     if (profile.id === "vol" || profile.id === "oi") {
@@ -526,6 +528,13 @@ function standardMajorsRequest(symbol, major) {
     };
 }
 
+/** Build the required request for an independent Major source. */
+function standardMajorRequest(symbol, major, includeMagnitude) {
+    return includeMagnitude || !LIGHTWEIGHT_MAJOR_SOURCE_IDS.has(major.id)
+        ? standardProfileRequest(symbol, major)
+        : standardMajorsRequest(symbol, major);
+}
+
 /** Get the selected Standard profiles and independent Majors. */
 async function fetchData(config, apiKey, signal) {
     if (!config.profiles.length && !config.majors.length) return { ts: 0, sources: {} };
@@ -544,8 +553,7 @@ async function fetchData(config, apiKey, signal) {
     const selectedProfiles = new Set(config.profiles.map((profile) => `${profile.id}|${profile.agg}`));
     for (const major of config.majors) {
         if (selectedProfiles.has(`${major.id}|${major.agg}`)) continue;
-        const request = config.showGexMagnitude ? standardProfileRequest(symbol, major) : standardMajorsRequest(symbol, major);
-        addRequest(request, major.id);
+        addRequest(standardMajorRequest(symbol, major, config.showGexMagnitude), major.id);
     }
 
     // All selected data forms one snapshot. If one request fails, cancel its
@@ -766,9 +774,18 @@ function addRealtimeDescriptor(descriptors, definition, consumer) {
     if (!descriptor.consumers.some((existing) => existing.key === consumer.key)) descriptor.consumers.push(consumer);
 }
 
-function quantBaseGroupDescriptors(config) {
+/** Get each source that is required by a visible profile or an independent Major. */
+function quantBaseSourceSelections(config) {
+    const byId = new Map();
+    for (const major of config.majors) byId.set(major.id, major);
+    for (const profile of config.profiles) byId.set(profile.id, profile);
+    return [...byId.values()];
+}
+
+/** Build the real-time group descriptors for Standard chart data. */
+function quantBaseGroupDescriptors(config, selections = quantBaseSourceSelections(config)) {
     const byGroup = new Map();
-    for (const profile of config.profiles) {
+    for (const profile of selections) {
         const category = classicCategory(profile.agg);
         let definition;
         if (profile.id === "vol" || profile.id === "oi") {
@@ -788,16 +805,18 @@ function quantBaseGroupDescriptors(config) {
     return [...byGroup.values()];
 }
 
+/** Collect the real-time group descriptors for all active chart configurations. */
 function collectExpiryDescriptors() {
     const descriptors = new Map();
     const activeSnapshotKeys = new Set();
     for (const [tab, entry] of tabFetch) {
         for (const [chartText, config] of Object.entries(entry.charts)) {
             const chart = Number(chartText);
-            if (isQuantTicker(config.symbol) && config.profiles.length) {
-                const definitions = quantBaseGroupDescriptors(config);
-                const expectedSources = config.profiles.map((profile) => profile.id);
-                const snapshotKey = `${tab}|${chart}|${entry.version}|${config.symbol}|${JSON.stringify(config.profiles)}`;
+            const baseSelections = quantBaseSourceSelections(config);
+            if (isQuantTicker(config.symbol) && baseSelections.length) {
+                const definitions = quantBaseGroupDescriptors(config, baseSelections);
+                const expectedSources = baseSelections.map((profile) => profile.id);
+                const snapshotKey = `${tab}|${chart}|${entry.version}|${config.symbol}|${JSON.stringify(baseSelections)}`;
                 activeSnapshotKeys.add(snapshotKey);
                 for (const definition of definitions) {
                     addRealtimeDescriptor(descriptors, definition, {
@@ -1128,16 +1147,16 @@ function normalizeStandardProfiles(raw, legacyMode, legacyAgg) {
     return result;
 }
 
-/** Validate the sources that use the latest Majors endpoint. */
+/** Validate the sources that are requested for independent Majors. */
 function normalizeStandardMajors(raw) {
     if (!Array.isArray(raw)) return [];
     const result = [];
     const seen = new Set();
-    for (const item of raw.slice(0, MAJORS_ONLY_SOURCE_IDS.size)) {
+    for (const item of raw.slice(0, STANDARD_MAJOR_SOURCE_IDS.size)) {
         if (!item || typeof item !== "object") continue;
         const id = String(item.id || "");
         const allowed = STANDARD_PROFILE_AGGREGATIONS.get(id);
-        if (!MAJORS_ONLY_SOURCE_IDS.has(id) || !allowed || seen.has(id)) continue;
+        if (!STANDARD_MAJOR_SOURCE_IDS.has(id) || !allowed || seen.has(id)) continue;
         const agg = allowed.has(item.agg) ? item.agg : "zero";
         seen.add(id);
         result.push({ id, agg });
@@ -1145,6 +1164,7 @@ function normalizeStandardMajors(raw) {
     return result;
 }
 
+/** Validate chart configurations from the renderer. */
 function normalizeCharts(rawCharts) {
     const result = {};
     if (!rawCharts || typeof rawCharts !== "object" || Array.isArray(rawCharts)) return result;
