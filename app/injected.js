@@ -91,25 +91,119 @@
     document.addEventListener("pointercancel", () => { if (pointerInteracting) { pointerInteracting = false; markInteraction(500); } }, true);
     document.addEventListener("wheel", (event) => { if (chartIndexAt(event.target) >= 0) markInteraction(500); }, { capture: true, passive: true });
 
-    function paneRectIn(container, height) {
-        let best = null;
-        container.querySelectorAll("canvas").forEach((canvas) => {
-            const rect = canvas.getBoundingClientRect();
-            if (Math.abs(rect.height - height) < 3 && rect.width > 150 && rect.height > 50 && (!best || rect.width > best.w)) {
-                best = { top: rect.top, left: rect.left, w: rect.width };
-            }
-        });
-        return best;
+    /** Return the pane that contains the chart's main series. */
+    function mainSeriesPane(chart) {
+        let panes = null;
+        try { panes = typeof chart.getPanes === "function" ? chart.getPanes() : null; } catch { }
+        if (!panes?.length) return null;
+        for (let index = 0; index < panes.length; index++) {
+            try {
+                if (typeof panes[index].hasMainSeries === "function" && panes[index].hasMainSeries()) {
+                    return { pane: panes[index], index };
+                }
+            } catch { }
+        }
+        return { pane: panes[0], index: 0 };
     }
 
+    /** Find the DOM rectangle for one TradingView pane canvas. */
+    function paneRectIn(container, height, paneIndex = 0) {
+        const candidates = [];
+        container.querySelectorAll("canvas").forEach((canvas) => {
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width > 1 && rect.height > 1) candidates.push(rect);
+        });
+        if (!candidates.length) return null;
+
+        // TradingView creates duplicate drawing canvases for each pane. Price-axis
+        // canvases are narrower than the pane canvases. Keep the widest canvases,
+        // remove duplicate rectangles, and use their vertical DOM order.
+        const maxWidth = Math.max(...candidates.map((rect) => rect.width));
+        const paneCanvases = [];
+        for (const rect of candidates) {
+            if (rect.width < maxWidth - Math.max(3, maxWidth * 0.05)) continue;
+            const duplicate = paneCanvases.some((other) =>
+                Math.abs(other.top - rect.top) < 2 && Math.abs(other.left - rect.left) < 2 &&
+                Math.abs(other.width - rect.width) < 2 && Math.abs(other.height - rect.height) < 2);
+            if (!duplicate) paneCanvases.push(rect);
+        }
+        paneCanvases.sort((a, b) => a.top - b.top || a.left - b.left);
+
+        const ordered = paneCanvases[paneIndex];
+        const exact = paneCanvases.find((rect) => Number.isFinite(height) && Math.abs(rect.height - height) < 3);
+        const rect = ordered && (!exact || !Number.isFinite(height) || Math.abs(ordered.height - height) < 3)
+            ? ordered
+            : exact || ordered;
+        return rect ? { top: rect.top, left: rect.left, w: rect.width, h: rect.height } : null;
+    }
+
+    /** Return the cached DOM rectangle for a chart's main-series pane. */
     function chartPaneRect(chart, index) {
         if (rects?.[index]) return rects[index];
         try {
-            const pane = typeof chart.getPanes === "function" ? chart.getPanes()?.[0] : null;
-            const height = pane && typeof pane.getHeight === "function" ? Number(pane.getHeight()) : NaN;
+            const paneInfo = mainSeriesPane(chart);
+            if (!paneInfo) return null;
+            const height = typeof paneInfo.pane.getHeight === "function" ? Number(paneInfo.pane.getHeight()) : NaN;
+            if (Number.isFinite(height) && height <= 1) return null;
             const container = chartContainers()[index];
-            return container && Number.isFinite(height) && height > 0 ? paneRectIn(container, height) : null;
+            return container ? paneRectIn(container, height, paneInfo.index) : null;
         } catch { return null; }
+    }
+
+    /** Return the main-series price scale before other pane scales. */
+    function panePriceScales(pane) {
+        const scales = [];
+        const add = (scale) => { if (scale && !scales.includes(scale)) scales.push(scale); };
+        try { if (typeof pane.getMainSourcePriceScale === "function") add(pane.getMainSourcePriceScale()); } catch { }
+        for (const method of ["getLeftPriceScales", "getRightPriceScales"]) {
+            try {
+                const values = typeof pane[method] === "function" ? pane[method]() : null;
+                if (values?.length) values.forEach(add);
+            } catch { }
+        }
+        const mainIndex = scales.findIndex((scale) => {
+            try { return typeof scale.hasMainSeries === "function" && scale.hasMainSeries(); } catch { return false; }
+        });
+        if (mainIndex > 0) scales.unshift(scales.splice(mainIndex, 1)[0]);
+        return scales;
+    }
+
+    /** Convert a visible price range to top and bottom prices. */
+    function visibleRangeGeometry(owner, inverted = false) {
+        let range = null;
+        try { if (owner && typeof owner.getVisiblePriceRange === "function") range = owner.getVisiblePriceRange(); } catch { }
+        const from = Number(range?.from);
+        const to = Number(range?.to);
+        if (![from, to].every(Number.isFinite) || from === to) return null;
+        const low = Math.min(from, to);
+        const high = Math.max(from, to);
+        return { priceTop: inverted ? low : high, priceBottom: inverted ? high : low };
+    }
+
+    /** Resolve the chart's price endpoints and scale mode. */
+    function priceScaleGeometry(chart, pane, height) {
+        for (const priceScale of panePriceScales(pane)) {
+            let mode = 0;
+            let inverted = false;
+            try { if (typeof priceScale.getMode === "function") mode = Number(priceScale.getMode()); } catch { }
+            try { if (typeof priceScale.isInverted === "function") inverted = priceScale.isInverted() === true; } catch { }
+            if (!Number.isFinite(mode)) mode = 0;
+
+            if (typeof priceScale.coordinateToPrice === "function") {
+                try {
+                    const priceTop = Number(priceScale.coordinateToPrice(0));
+                    const priceBottom = Number(priceScale.coordinateToPrice(height));
+                    if ([priceTop, priceBottom].every(Number.isFinite) && priceTop !== priceBottom) {
+                        return { priceTop, priceBottom, mode };
+                    }
+                } catch { }
+            }
+            const range = visibleRangeGeometry(priceScale, inverted);
+            if (range) return { ...range, mode };
+        }
+
+        const range = visibleRangeGeometry(chart);
+        return range ? { ...range, mode: 0 } : null;
     }
 
     function occlusionRects(maps) {
@@ -266,27 +360,32 @@
             if (!rects) { rects = new Array(count).fill(null); rectsForLayout = layout; }
 
             const maps = [];
+            const failures = [];
             for (let index = 0; index < count && index < 8; index++) {
                 let chart;
-                try { chart = api.chart(index); } catch { continue; }
-                if (!chart) continue;
+                try { chart = api.chart(index); } catch { }
+                if (!chart) { failures.push(`chart ${index + 1}: chart API was unavailable`); continue; }
 
-                const panes = typeof chart.getPanes === "function" ? chart.getPanes() : null;
-                if (!panes?.length) continue;
-                const pane = panes[0];
-                const priceScale = typeof pane.getMainSourcePriceScale === "function" ? pane.getMainSourcePriceScale() : null;
-                if (!priceScale || typeof priceScale.coordinateToPrice !== "function" || typeof pane.getHeight !== "function") continue;
-
-                const height = Number(pane.getHeight());
-                const priceTop = Number(priceScale.coordinateToPrice(0));
-                const priceBottom = Number(priceScale.coordinateToPrice(height));
-                if (![height, priceTop, priceBottom].every(Number.isFinite) || height <= 0 || priceTop === priceBottom) continue;
+                const paneInfo = mainSeriesPane(chart);
+                if (!paneInfo) { failures.push(`chart ${index + 1}: main-series pane was unavailable`); continue; }
+                const pane = paneInfo.pane;
+                let height = NaN;
+                try { if (typeof pane.getHeight === "function") height = Number(pane.getHeight()); } catch { }
+                if (Number.isFinite(height) && height <= 1) {
+                    failures.push(`chart ${index + 1}: main-series pane was collapsed`);
+                    continue;
+                }
 
                 const container = containers[index];
-                if (!container) continue;
-                if (!rects[index]) rects[index] = paneRectIn(container, height);
+                if (!container) { failures.push(`chart ${index + 1}: chart container was unavailable`); continue; }
+                if (!rects[index]) rects[index] = paneRectIn(container, height, paneInfo.index);
                 const rect = rects[index];
-                if (!rect) continue;
+                if (!rect) { failures.push(`chart ${index + 1}: pane canvas was unavailable`); continue; }
+                if (!Number.isFinite(height) || height <= 0) height = rect.h;
+
+                const geometry = priceScaleGeometry(chart, pane, height);
+                if (!geometry) { failures.push(`chart ${index + 1}: visible price range was unavailable`); continue; }
+                const { priceTop, priceBottom, mode } = geometry;
 
                 let symbol = "";
                 let resolution = "";
@@ -306,18 +405,21 @@
                     paneTop: rect.top,
                     paneLeft: rect.left,
                     paneW: rect.w,
-                    H: height,
+                    H: rect.h,
                     priceTop,
                     priceBottom,
                     timeFrom: timeRange?.from ?? null,
                     timeTo: timeRange?.to ?? null,
                     logicalFrom: Number.isFinite(logicalFrom) ? logicalFrom : null,
                     logicalTo: Number.isFinite(logicalTo) ? logicalTo : null,
-                    mode: typeof priceScale.getMode === "function" ? Number(priceScale.getMode()) : 0,
+                    mode,
                 });
             }
 
-            if (!maps.length) return { error: "TradingView price-scale geometry could not be resolved" };
+            if (!maps.length) {
+                const detail = failures.slice(0, 3).join("; ");
+                return { error: `TradingView price-scale geometry could not be resolved${detail ? ` (${detail})` : ""}` };
+            }
             return { state: { layout: layout.slice(0, 32), count: maps.length, maps, occlusions: occlusionRects(maps) } };
         } catch (error) {
             return { error: `TradingView compatibility failure: ${String(error?.message || error).slice(0, 120)}` };
