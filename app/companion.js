@@ -70,6 +70,7 @@ const TICKER_LIST_TTL_MS = 24 * 60 * 60 * 1000;
 const MARKET_TIME_ZONE = "America/New_York";
 const MARKET_OPEN_MINUTE = 9 * 60 + 30;
 const MARKET_CLOSE_MINUTE = 16 * 60;
+const STANDARD_POLLING_WATCHDOG_INTERVAL_MS = 60 * 1000;
 const MARKET_PARTS_FORMATTER = new Intl.DateTimeFormat("en-US", {
     timeZone: MARKET_TIME_ZONE,
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -92,6 +93,7 @@ let tickerListRequest = null;
 let quantTickerDiscoveryPromise = null;
 let quantTickerDiscoveryComplete = false;
 let discoveryTimer = null;
+let standardPollingWatchdogTimer = null;
 let debugFailureCount = 0;
 let shuttingDown = false;
 
@@ -123,6 +125,8 @@ function shutdown(reason, exitCode = 0) {
     console.log(`[iof] shutting down: ${reason}`);
     if (discoveryTimer) clearInterval(discoveryTimer);
     discoveryTimer = null;
+    if (standardPollingWatchdogTimer) clearInterval(standardPollingWatchdogTimer);
+    standardPollingWatchdogTimer = null;
     for (const tab of [...tabFetch.keys()]) stopTabFetch(tab, false);
     closeExpirySockets();
     removeOwnPidFile();
@@ -1204,7 +1208,7 @@ function restartTabFetch(tab, entry) {
 function setTabFetch(tab, message) {
     let entry = tabFetch.get(tab);
     if (!entry) {
-        entry = { charts: {}, intervalSec: 2, version: 0, signature: "", pollingSignature: "", generation: 0, timer: null, controller: null, running: false };
+        entry = { charts: {}, intervalSec: 2, version: 0, signature: "", pollingSignature: "", generation: 0, timer: null, controller: null, running: false, lastFetchStartedAt: 0 };
         tabFetch.set(tab, entry);
     }
 
@@ -1318,10 +1322,37 @@ function scheduleRecurringTabFetch(tab, entry) {
     scheduleTabFetch(tab, entry, recurringFetchDelay(entry), false);
 }
 
+/** Return the current Eastern market session's opening timestamp. */
+function currentMarketOpenTime(date = new Date()) {
+    const parts = marketTimeParts(date);
+    return marketLocalTimeToUtc(parts.year, parts.month, parts.day, 9, 30);
+}
+
+/** Recover stranded Standard polling during market hours. */
+function runStandardPollingWatchdog(date = new Date()) {
+    if (!isMarketHours(date)) return;
+
+    const sessionOpen = currentMarketOpenTime(date);
+    for (const [tab, entry] of tabFetch) {
+        if (!globalApiKey || !quantTickerDiscoveryComplete || !restChartEntries(entry).length) continue;
+        const fetchedThisSession = entry.lastFetchStartedAt >= sessionOpen;
+        if (fetchedThisSession && (entry.running || entry.timer)) continue;
+        restartTabFetch(tab, entry);
+    }
+}
+
+/** Start the one-minute Standard polling watchdog. */
+function startStandardPollingWatchdog() {
+    runStandardPollingWatchdog();
+    standardPollingWatchdogTimer = setInterval(runStandardPollingWatchdog, STANDARD_POLLING_WATCHDOG_INTERVAL_MS);
+}
+
+/** Fetch every REST-backed chart in a tab without overlapping requests. */
 async function runTabFetch(tab, entry) {
     if (tabFetch.get(tab) !== entry || entry.running || !globalApiKey || !restChartEntries(entry).length) return;
     entry.timer = null;
     entry.running = true;
+    entry.lastFetchStartedAt = Date.now();
     const generation = entry.generation;
     const version = entry.version;
     const controller = new AbortController();
@@ -1614,7 +1645,10 @@ async function startCompanion() {
         void ensureQuantTickerDiscovery();
     }
     await discover();
-    if (!shuttingDown) discoveryTimer = setInterval(discover, 3_000);
+    if (!shuttingDown) {
+        discoveryTimer = setInterval(discover, 3_000);
+        startStandardPollingWatchdog();
+    }
 }
 
 async function main() {
