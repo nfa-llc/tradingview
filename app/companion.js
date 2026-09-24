@@ -86,6 +86,7 @@ const STANDARD_PROFILE_AGGREGATIONS = new Map([
 ]);
 const STANDARD_MAJOR_SOURCE_IDS = new Set(STANDARD_PROFILE_AGGREGATIONS.keys());
 const LIGHTWEIGHT_MAJOR_SOURCE_IDS = new Set(["vol", "oi", "s_gex"]);
+const sessionConfigs = new Map();
 let configs = {};
 let globalApiKey = "";
 let tickerListCache = null;
@@ -270,35 +271,55 @@ function writeConfigs() {
 // ---- Renderer shim ----------------------------------------------------------
 // This runs in a named CDP isolated world. TradingView page scripts cannot read
 // these globals, callbacks, configs, or streamed API payloads.
-const SHIM = `(function(){
+/** Build the renderer shim for one TradingView page target. */
+function buildShim(runtimeTab) {
+    return `(function(){
   if (window.__iofShim) return; window.__iofShim = true;
-  function tabId(){ try{
+  var runtimeTab=${JSON.stringify(runtimeTab)};
+  function legacyTabId(){ try{
     var m=location.pathname.match(/\\/chart\\/([^\\/]+)/);
     if(m&&m[1]) return 'layout_'+m[1].replace(/[^A-Za-z0-9_-]/g,'').slice(0,96);
-    var id=sessionStorage.getItem('iofTabId');
-    if(!id){id='tab_'+Math.random().toString(36).slice(2)+Date.now().toString(36);sessionStorage.setItem('iofTabId',id);}
+  }catch(e){}
+    return '';
+  }
+  function legacyTabs(){ var tabs=[]; var layout=legacyTabId(); if(layout) tabs.push(layout); try{
+    var prior=sessionStorage.getItem('iofTabId');
+    if(prior&&tabs.indexOf(prior)<0) tabs.push(prior);
+  }catch(e){}
+    return tabs;
+  }
+  function configTabId(){ try{
+    var id=sessionStorage.getItem('iofConfigTabId');
+    if(!id){id='session_'+Math.random().toString(36).slice(2)+Date.now().toString(36);sessionStorage.setItem('iofConfigTabId',id);}
     return id;
-  }catch(e){return 'tab_default';}}
-  window.__iofTabId=tabId;
+  }catch(e){return legacyTabId()||'tab_default';}}
+  function identity(){
+    var value={tab:runtimeTab,configTab:configTabId()};
+    var legacy=legacyTabs();
+    if(legacy.length) value.legacyTabs=legacy;
+    return value;
+  }
+  window.__iofTabId=function(){return runtimeTab;};
   window.chrome=window.chrome||{};
   var rt=window.chrome.runtime=window.chrome.runtime||{};rt.id="tvdesktop";
   rt.connect=function(){
     var listeners=[];
     window.__iofPort={deliver:function(message){listeners.slice().forEach(function(fn){try{fn(message);}catch(e){}});}};
     return {name:"gexbot",onMessage:{addListener:function(fn){listeners.push(fn);}},onDisconnect:{addListener:function(){}},
-      postMessage:function(message){try{__iofSetConfig(JSON.stringify({tab:tabId(),msg:message}));}catch(e){}}};
+      postMessage:function(message){try{var payload=identity();payload.msg=message;__iofSetConfig(JSON.stringify(payload));}catch(e){}}};
   };
   window.chrome.storage={local:{
-    get:function(key,callback){window.__iofCfgCb=callback;try{__iofReqConfig(tabId());}catch(e){callback({});}},
-    set:function(obj){if(obj&&obj.iofConfigV1){try{__iofSave(JSON.stringify({tab:tabId(),config:obj.iofConfigV1}));}catch(e){}}}
+    get:function(key,callback){window.__iofCfgCb=callback;try{__iofReqConfig(JSON.stringify(identity()));}catch(e){callback({});}},
+    set:function(obj){if(obj&&obj.iofConfigV1){try{var payload=identity();payload.config=obj.iofConfigV1;__iofSave(JSON.stringify(payload));}catch(e){}}}
   }};
 })();`;
+}
 
-function buildContentBundle() {
+function buildContentBundle(runtimeTab) {
     const content = fs.readFileSync(path.join(EXT_DIR, "content.js"), "utf8");
     const css = fs.readFileSync(path.join(EXT_DIR, "panel.css"), "utf8");
     const cssInject = `(function(){var s=document.getElementById('iof-style');if(!s){s=document.createElement('style');s.id='iof-style';document.documentElement.appendChild(s);}s.textContent=${JSON.stringify(css)};})();`;
-    return `${SHIM}\n${cssInject}\n${content}`;
+    return `${buildShim(runtimeTab)}\n${cssInject}\n${content}`;
 }
 
 function buildInjectedBundle() {
@@ -1464,6 +1485,7 @@ function cdp(webSocketUrl) {
     return {
         ready,
         tabId: null,
+        configTabId: null,
         contextId: null,
         send(method, params = {}) {
             return new Promise((resolve, reject) => {
@@ -1488,9 +1510,59 @@ function replyConfig(client, config) {
     }).catch(() => { });
 }
 
+/** Normalize an optional tab identifier or return an empty string. */
+function normalizeOptionalTabId(value) {
+    if (value == null || value === "") return "";
+    const tab = String(value);
+    return /^[A-Za-z0-9_-]{1,128}$/.test(tab) ? tab : "";
+}
+
+/** Normalize a required tab identifier. */
 function normalizeTabId(value) {
-    const tab = String(value || "tab_default");
-    return /^[A-Za-z0-9_-]{1,128}$/.test(tab) ? tab : "tab_default";
+    return normalizeOptionalTabId(value) || "tab_default";
+}
+
+/** Build the runtime tab identifier for one TradingView page target. */
+function runtimeTabIdForTarget(targetId) {
+    const clean = String(targetId || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 120);
+    return clean ? `page_${clean}` : `page_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
+/** Return true when a config key is scoped to one live TradingView tab. */
+function isSessionConfigTab(value) {
+    return typeof value === "string" && value.startsWith("session_");
+}
+
+/** Parse renderer identity data and normalize its config keys. */
+function normalizeRendererIdentity(payload, fallbackConfigTab = "tab_default") {
+    let value = payload;
+    if (typeof value === "string") {
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) value = parsed;
+            else return { runtimeTab: "", configTab: normalizeTabId(value), legacyTabs: [] };
+        } catch {
+            return { runtimeTab: "", configTab: normalizeTabId(value), legacyTabs: [] };
+        }
+    }
+    const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const runtimeTab = normalizeOptionalTabId(raw.tab);
+    const configTab = normalizeOptionalTabId(raw.configTab) || normalizeTabId(fallbackConfigTab || runtimeTab);
+    const legacyTabs = [...new Set((Array.isArray(raw.legacyTabs) ? raw.legacyTabs : [])
+        .map(normalizeOptionalTabId)
+        .filter(Boolean)
+        .filter((tab) => tab !== configTab))];
+    return { runtimeTab, configTab, legacyTabs };
+}
+
+/** Resolve the saved config for one renderer, including legacy fallbacks. */
+function storedConfigFor(configTab, legacyTabs = []) {
+    for (const key of [configTab, ...legacyTabs]) {
+        if (!key) continue;
+        const config = sessionConfigs.get(key) || configs[key];
+        if (config) return config;
+    }
+    return {};
 }
 
 async function injectBundles(client) {
@@ -1504,13 +1576,17 @@ async function injectBundles(client) {
         grantUniveralAccess: false,
     });
     client.contextId = world.executionContextId;
-    await client.send("Runtime.evaluate", { contextId: client.contextId, expression: buildContentBundle() });
+    await client.send("Runtime.evaluate", { contextId: client.contextId, expression: buildContentBundle(client.tabId) });
     await client.send("Runtime.evaluate", { expression: buildInjectedBundle() });
 }
 
 function releaseClient(client, targetId) {
     clients.delete(client);
     attached.delete(targetId);
+    const configTab = client.configTabId;
+    if (configTab && isSessionConfigTab(configTab) && ![...clients].some((candidate) => candidate.configTabId === configTab)) {
+        sessionConfigs.delete(configTab);
+    }
     const tab = client.tabId;
     if (tab && ![...clients].some((candidate) => candidate.tabId === tab)) stopTabFetch(tab);
 }
@@ -1521,6 +1597,7 @@ async function attach(target) {
     let client;
     try {
         client = cdp(target.webSocketDebuggerUrl);
+        client.tabId = runtimeTabIdForTarget(target.id);
         await client.ready;
         await client.send("Runtime.enable");
         await client.send("Page.enable");
@@ -1532,18 +1609,30 @@ async function attach(target) {
             if (!client.contextId || executionContextId !== client.contextId) return;
             try {
                 if (name === "__iofReqConfig") {
-                    client.tabId = normalizeTabId(payload);
-                    replyConfig(client, configs[client.tabId] || {});
+                    const identity = normalizeRendererIdentity(payload, client.configTabId || client.tabId);
+                    if (identity.runtimeTab && identity.runtimeTab !== client.tabId) return;
+                    client.configTabId = identity.configTab;
+                    replyConfig(client, storedConfigFor(identity.configTab, identity.legacyTabs));
                 } else if (name === "__iofSave") {
                     const parsed = JSON.parse(payload);
-                    const tab = normalizeTabId(parsed.tab);
-                    if (client.tabId && tab !== client.tabId) return;
-                    configs[tab] = sanitizeTabConfig(parsed.config);
-                    writeConfigs();
+                    const identity = normalizeRendererIdentity(parsed, client.configTabId || client.tabId);
+                    if (identity.runtimeTab && identity.runtimeTab !== client.tabId) return;
+                    client.configTabId = identity.configTab;
+                    const safe = sanitizeTabConfig(parsed.config);
+                    if (isSessionConfigTab(identity.configTab)) sessionConfigs.set(identity.configTab, safe);
+                    const persistentTabs = identity.legacyTabs.length ? identity.legacyTabs : [identity.configTab];
+                    const uniqueTabs = [...new Set(persistentTabs.map(normalizeOptionalTabId).filter(Boolean))]
+                        .filter((tab) => !isSessionConfigTab(tab) || !identity.legacyTabs.length);
+                    if (uniqueTabs.length) {
+                        for (const tab of uniqueTabs) configs[tab] = safe;
+                        writeConfigs();
+                    }
                 } else if (name === "__iofSetConfig") {
                     const parsed = JSON.parse(payload);
-                    const tab = normalizeTabId(parsed.tab);
-                    if (client.tabId && tab !== client.tabId) return;
+                    const identity = normalizeRendererIdentity(parsed, client.configTabId || client.tabId);
+                    if (identity.runtimeTab && identity.runtimeTab !== client.tabId) return;
+                    client.configTabId = identity.configTab;
+                    const tab = client.tabId;
                     if (parsed.msg?.type === "clear-api-key") {
                         clearGlobalApiKey();
                     } else if (parsed.msg?.type === "config") {
