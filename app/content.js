@@ -43,7 +43,7 @@
     const HISTORY_MAJOR_IDS = Object.keys(HISTORY_MAJOR_BITS);
     const FUTURES_PAIRS = [
         ["SPX", "ES"], ["SPY", "ES"], ["NDX", "NQ"], ["QQQ", "NQ"], ["RUT", "RTY"],
-        ["IWM", "RTY"], ["DIA", "YM"], ["GLD", "GC"], ["USO", "CL"],
+        ["IWM", "RTY"], ["DIA", "YM"], ["GLD", "GC"], ["SLV", "SI"], ["USO", "CL"],
     ];
 
     const LEVEL_DEFS = {

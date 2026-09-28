@@ -1201,7 +1201,7 @@ function normalizeCharts(rawCharts) {
         const symbol = String(raw.symbol || "").trim().toUpperCase();
         const futuresTarget = String(raw.futuresTarget || "").trim().toUpperCase();
         if (!/^[A-Z_]{1,6}$/.test(symbol)) continue;
-        if (futuresTarget && !["NQ", "ES", "RTY", "YM", "GC", "CL"].includes(futuresTarget)) continue;
+        if (futuresTarget && !["NQ", "ES", "RTY", "YM", "GC", "SI", "CL"].includes(futuresTarget)) continue;
         const standardEnabled = raw.standardEnabled !== false;
         const quantEnabled = raw.quantEnabled !== false;
         const showGexMagnitude = standardEnabled && raw.showGexMagnitude === true;
