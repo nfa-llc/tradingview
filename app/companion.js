@@ -487,6 +487,8 @@ function gexSource(response) {
             zeroGamma: response.zero_gamma,
             majorPosOi: response.major_pos_oi,
             majorNegOi: response.major_neg_oi,
+            netGexVol: response.sum_gex_vol,
+            netGexOi: response.sum_gex_oi,
         },
         magnitudes: {
             majorPosVol: profileBarMagnitude(strikes, 1, response.major_pos_vol),
@@ -532,6 +534,51 @@ function majorsSource(response) {
     };
 }
 
+/** Convert a max-change response to a table source: 1, 5, 10, 15 and 30 minute [strike, GEX] rows. */
+function maxChangeSource(response) {
+    const rows = ["one", "five", "ten", "fifteen", "thirty"].map((key) => {
+        const pair = Array.isArray(response?.[key]) ? response[key] : [];
+        return [Number(pair[0]), Number(pair[1])];
+    });
+    return { ts: Number(response?.timestamp) || 0, rows, strikes: [] };
+}
+
+/** Build the optional table requests (Max Change and Levels) for one chart. */
+function tableRequests(symbol, tables) {
+    const requests = [];
+    if (tables?.levels) {
+        requests.push({
+            id: "t_levels",
+            route: `${symbol}/${tables.levels.package}/${classicCategory(tables.levels.agg)}`,
+            kind: "gex",
+        });
+    }
+    if (tables?.maxChange) {
+        requests.push({
+            id: "t_maxchange",
+            route: `${symbol}/${tables.maxChange.package}/${classicCategory(tables.maxChange.agg)}/maxchange`,
+            kind: "maxchange",
+        });
+    }
+    return requests;
+}
+
+const MAX_CHANGE_MIN_INTERVAL_MS = 3_000;
+const maxChangeCache = new Map();
+
+/** Fetch one table route. Max-change answers are reused for a few seconds to spare its smaller quota. */
+async function fetchTableJson(request, apiKey, signal) {
+    if (request.kind === "maxchange") {
+        const cached = maxChangeCache.get(request.route);
+        if (cached && Date.now() - cached.at < MAX_CHANGE_MIN_INTERVAL_MS) return cached.response;
+        const response = await getJson(request.route, apiKey, signal);
+        maxChangeCache.set(request.route, { at: Date.now(), response });
+        if (maxChangeCache.size > 64) maxChangeCache.delete(maxChangeCache.keys().next().value);
+        return response;
+    }
+    return getJson(request.route, apiKey, signal);
+}
+
 /** Build a request for a Standard profile. */
 function standardProfileRequest(symbol, profile) {
     const category = classicCategory(profile.agg);
@@ -562,7 +609,8 @@ function standardMajorRequest(symbol, major, includeMagnitude) {
 
 /** Get the selected Standard profiles and independent Majors. */
 async function fetchData(config, apiKey, signal) {
-    if (!config.profiles.length && !config.majors.length) return { ts: 0, sources: {} };
+    const tableList = tableRequests(encodeURIComponent(config.symbol), config.tables);
+    if (!config.profiles.length && !config.majors.length && !tableList.length) return { ts: 0, sources: {} };
     const symbol = encodeURIComponent(config.symbol);
     const byRoute = new Map();
     const addRequest = (request, sourceId) => {
@@ -581,6 +629,14 @@ async function fetchData(config, apiKey, signal) {
         addRequest(standardMajorRequest(symbol, major, config.showGexMagnitude), major.id);
     }
 
+    // Tables share a profile request when it already covers the same route. Otherwise they are
+    // fetched on their own and a failure only hides the table: it never cancels the profiles.
+    const separateTables = [];
+    for (const request of tableList) {
+        if (request.kind === "gex" && byRoute.has(request.route)) addRequest(request, request.id);
+        else separateTables.push(request);
+    }
+
     // All selected data forms one snapshot. If one request fails, cancel its
     // siblings. This prevents a mix of fresh and stale sources.
     const controller = new AbortController();
@@ -592,16 +648,27 @@ async function fetchData(config, apiKey, signal) {
             plugin: TRADINGVIEW_PLUGIN_HEADER,
         })
         : getJson(entry.route, apiKey, combinedSignal));
+    const tableResults = separateTables.map(async (request) => {
+        try {
+            const response = await fetchTableJson(request, apiKey, combinedSignal);
+            return [request.id, request.kind === "maxchange" ? maxChangeSource(response) : gexSource(response)];
+        } catch (error) {
+            if (combinedSignal.aborted) throw error;
+            return [request.id, { ts: 0, error: String(error?.message || error).slice(0, 160), strikes: [] }];
+        }
+    });
     let responses;
+    let tableSources;
     try {
-        responses = await Promise.all(requests);
+        [responses, tableSources] = await Promise.all([Promise.all(requests), Promise.all(tableResults)]);
     } catch (error) {
         controller.abort(error);
-        await Promise.allSettled(requests);
+        await Promise.allSettled([...requests, ...tableResults]);
         throw error;
     }
 
     const sources = {};
+    for (const [id, source] of tableSources) sources[id] = source;
     let timestamp = 0;
     for (let index = 0; index < entries.length; index++) {
         const entry = entries[index];
@@ -1189,6 +1256,21 @@ function normalizeStandardMajors(raw) {
     return result;
 }
 
+/** Validate the optional Max Change and Levels tables. A table is requested only when it is shown. */
+function normalizeTables(raw) {
+    const result = { maxChange: null, levels: null };
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return result;
+    for (const key of ["maxChange", "levels"]) {
+        const item = raw[key];
+        if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+        result[key] = {
+            package: item.package === "state" ? "state" : "classic",
+            agg: ["zero", "one", "full"].includes(item.agg) ? item.agg : "zero",
+        };
+    }
+    return result;
+}
+
 /** Validate chart configurations from the renderer. */
 function normalizeCharts(rawCharts) {
     const result = {};
@@ -1207,15 +1289,17 @@ function normalizeCharts(rawCharts) {
         const showGexMagnitude = standardEnabled && raw.showGexMagnitude === true;
         const profiles = standardEnabled ? normalizeStandardProfiles(raw.profiles, raw.mode, raw.agg) : [];
         const majors = standardEnabled ? normalizeStandardMajors(raw.majors) : [];
+        const tables = standardEnabled ? normalizeTables(raw.tables) : { maxChange: null, levels: null };
         const expirations = quantEnabled ? normalizeExpirationSubscriptions(raw.expirations) : [];
-        result[index] = { symbol, futuresTarget, standardEnabled, quantEnabled, showGexMagnitude, profiles, majors, expirations };
+        result[index] = { symbol, futuresTarget, standardEnabled, quantEnabled, showGexMagnitude, profiles, majors, tables, expirations };
     }
     return result;
 }
 
 function restChartEntries(entry) {
     return Object.entries(entry.charts).filter(([, config]) =>
-        config.standardEnabled && !isQuantTicker(config.symbol) && (config.profiles.length || config.majors.length));
+        config.standardEnabled && !isQuantTicker(config.symbol)
+        && (config.profiles.length || config.majors.length || config.tables.maxChange || config.tables.levels));
 }
 
 function restartTabFetch(tab, entry) {
@@ -1245,6 +1329,7 @@ function setTabFetch(tab, message) {
         showGexMagnitude: config.showGexMagnitude,
         profiles: config.profiles,
         majors: config.majors,
+        tables: config.tables,
     }]));
     const pollingSignature = JSON.stringify({ charts: pollingCharts, intervalSec });
     const pollingChanged = pollingSignature !== entry.pollingSignature;

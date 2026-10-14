@@ -31,12 +31,12 @@
     // Profile definitions. source → key in data.sources; idx → value column in a
     // strike row; priorIdx → column holding the priors[] array (or null).
     const PROFILE_DEFS = {
-        vol:     { label: "Classic GEX Vol Profile", source: "vol",     aggregations: ["zero", "one", "full"], idx: 1, priorIdx: 3, priorLabels: PRIOR5, def: { show: true, agg: "zero", align: "left",  originPct: 88, widthPx: 160, thickness: 2, verticalOffsetPx: 0, posColor: "#2EA05A", negColor: "#C54A4A", priors: true,  priorSize: 3, priorColors: PRIOR5C.slice() } },
-        oi:      { label: "Classic OI Profile",      source: "oi",      aggregations: ["zero", "one", "full"], idx: 2, priorIdx: null, priorLabels: [], def: { show: true, agg: "zero", align: "right", originPct: 12, widthPx: 160, thickness: 2, verticalOffsetPx: 0, posColor: "#37B24D", negColor: "#E64980", priors: false, priorSize: 3, priorColors: PRIOR5C.slice() } },
+        vol:     { label: "Classic GEX Vol Profile", source: "vol",     aggregations: ["zero", "one", "full"], idx: 1, priorIdx: 3, priorLabels: PRIOR5, def: { show: true, agg: "zero", align: "left",  originPct: 88, widthPx: 160, thickness: 2, verticalOffsetPx: 0, filterTop: 0, filterBottom: 0, posColor: "#2EA05A", negColor: "#C54A4A", priors: true,  priorSize: 3, priorColors: PRIOR5C.slice() } },
+        oi:      { label: "Classic OI Profile",      source: "oi",      aggregations: ["zero", "one", "full"], idx: 2, priorIdx: null, priorLabels: [], def: { show: true, agg: "zero", align: "right", originPct: 12, widthPx: 160, thickness: 2, verticalOffsetPx: 0, filterTop: 0, filterBottom: 0, posColor: "#37B24D", negColor: "#E64980", priors: false, priorSize: 3, priorColors: PRIOR5C.slice() } },
         // Retained only to migrate settings from the former State data mode.
-        s_oi:    { label: "Classic OI Profile",      source: "oi",      aggregations: ["zero", "one", "full"], idx: 2, priorIdx: null, priorLabels: [], def: { show: true, agg: "zero", align: "right", originPct: 8,  widthPx: 120, thickness: 2, verticalOffsetPx: 0, posColor: "#37B24D", negColor: "#E64980", priors: false, priorSize: 3, priorColors: PRIOR5C.slice() } },
-        s_gex:   { label: "State GEX Profile",       source: "s_gex",   aggregations: ["zero", "one", "full"], idx: 1, priorIdx: 3, priorLabels: PRIOR5, def: { show: true, agg: "zero", align: "left",  originPct: 78, widthPx: 120, thickness: 2, verticalOffsetPx: 0, posColor: "#2EA05A", negColor: "#C54A4A", priors: true,  priorSize: 3, priorColors: PRIOR5C.slice() } },
-        s_gamma: { label: "State Gamma Profile",     source: "s_gamma", aggregations: ["zero", "one"],         idx: 3, priorIdx: 4, priorLabels: PRIOR3, def: { show: true, agg: "zero", align: "right", originPct: 90, widthPx: 120, thickness: 2, verticalOffsetPx: 0, posColor: "#22D3EE", negColor: "#A855F7", priors: true,  priorSize: 3, priorColors: PRIOR3C.slice() } },
+        s_oi:    { label: "Classic OI Profile",      source: "oi",      aggregations: ["zero", "one", "full"], idx: 2, priorIdx: null, priorLabels: [], def: { show: true, agg: "zero", align: "right", originPct: 8,  widthPx: 120, thickness: 2, verticalOffsetPx: 0, filterTop: 0, filterBottom: 0, posColor: "#37B24D", negColor: "#E64980", priors: false, priorSize: 3, priorColors: PRIOR5C.slice() } },
+        s_gex:   { label: "State GEX Profile",       source: "s_gex",   aggregations: ["zero", "one", "full"], idx: 1, priorIdx: 3, priorLabels: PRIOR5, def: { show: true, agg: "zero", align: "left",  originPct: 78, widthPx: 120, thickness: 2, verticalOffsetPx: 0, filterTop: 0, filterBottom: 0, posColor: "#2EA05A", negColor: "#C54A4A", priors: true,  priorSize: 3, priorColors: PRIOR5C.slice() } },
+        s_gamma: { label: "State Gamma Profile",     source: "s_gamma", aggregations: ["zero", "one"],         idx: 3, priorIdx: 4, priorLabels: PRIOR3, def: { show: true, agg: "zero", align: "right", originPct: 90, widthPx: 120, thickness: 2, verticalOffsetPx: 0, filterTop: 0, filterBottom: 0, posColor: "#22D3EE", negColor: "#A855F7", priors: true,  priorSize: 3, priorColors: PRIOR3C.slice() } },
     };
     const STANDARD_PROFILE_IDS = ["vol", "oi", "s_gex", "s_gamma"];
     const HISTORY_MAJOR_BITS = { majorPosVol: 1, majorNegVol: 2, zeroGamma: 4 };
@@ -70,7 +70,7 @@
     const EXPIRY_PROFILE_IDS = Object.keys(EXPIRY_PROFILE_DEFS);
     const INDEPENDENT_MAJORS_VERSION = 1;
     const EXPIRY_DEFAULTS_VERSION = 2; // Defaults version 2 migrated the initial 120px width to 50px.
-    const NUMK = { originPct: [0, 100], widthPx: [10, 2000], thickness: [1, 20], verticalOffsetPx: [-5000, 5000, 0], priorSize: [1, 12] };
+    const NUMK = { originPct: [0, 100], widthPx: [10, 2000], thickness: [1, 20], verticalOffsetPx: [-5000, 5000, 0], priorSize: [1, 12], filterTop: [0, 1000, 0], filterBottom: [0, 1000, 0] };
 
     function majorStyleDefaults(id, labelPosition = "left") {
         return {
@@ -114,6 +114,8 @@
             widthPx: 50,
             thickness: 2,
             verticalOffsetPx: 0,
+            filterTop: 0,
+            filterBottom: 0,
             posColor: def.colors[0],
             negColor: def.colors[1],
             priors: false,
@@ -141,6 +143,8 @@
         profile.thickness = Number.isFinite(Number(profile.thickness)) ? clamp(Number(profile.thickness), 1, 20) : 2;
         profile.verticalOffsetPx = Number.isFinite(Number(profile.verticalOffsetPx)) ? clamp(Number(profile.verticalOffsetPx), -5000, 5000) : 0;
         profile.priorSize = Number.isFinite(Number(profile.priorSize)) ? clamp(Number(profile.priorSize), 1, 12) : 3;
+        profile.filterTop = Number.isFinite(Number(profile.filterTop)) ? Math.floor(clamp(Number(profile.filterTop), 0, 1000)) : 0;
+        profile.filterBottom = Number.isFinite(Number(profile.filterBottom)) ? Math.floor(clamp(Number(profile.filterBottom), 0, 1000)) : 0;
         profile.priors = def.priorIdx != null && profile.priors === true;
         profile.posColor = typeof profile.posColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(profile.posColor) ? profile.posColor : def.colors[0];
         profile.negColor = typeof profile.negColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(profile.negColor) ? profile.negColor : def.colors[1];
@@ -185,6 +189,64 @@
         return JSON.stringify(draftExpirationSubscriptions(chart)) !== JSON.stringify(sanitizeAppliedSubscriptions(chart.expirations?.applied));
     }
 
+    // Max Change and Levels tables: drawn on the chart, shown only when ticked, draggable.
+    const TABLE_CORNERS = ["top-left", "top-right", "bottom-left", "bottom-right"];
+    const TABLE_NUMK = { offsetX: [0, 5000], offsetY: [0, 5000], fontSize: [8, 40] };
+    const LEVEL_ROW_DEFS = {
+        zeroGamma:   "Volume: Zero Gamma",
+        majorPosVol: "Volume: Major Positive",
+        majorNegVol: "Volume: Major Negative",
+        netGexVol:   "Volume: Net GEX",
+        majorPosOi:  "Open Interest: Major Positive",
+        majorNegOi:  "Open Interest: Major Negative",
+        netGexOi:    "Open Interest: Net GEX",
+    };
+    const LEVEL_ROW_IDS = Object.keys(LEVEL_ROW_DEFS);
+
+    function tableDefaults() {
+        const rows = {};
+        for (const id of LEVEL_ROW_IDS) rows[id] = true;
+        return {
+            maxChange: { show: false, package: "classic", agg: "zero", corner: "bottom-left", offsetX: 10, offsetY: 45, fontSize: 12 },
+            levels: { show: false, package: "classic", agg: "zero", corner: "bottom-left", offsetX: 230, offsetY: 45, fontSize: 12, rows },
+        };
+    }
+
+    function normalizedTable(defaults, value) {
+        const raw = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+        const number = (key) => Number.isFinite(Number(raw[key])) && raw[key] !== null && raw[key] !== ""
+            ? clamp(Math.round(Number(raw[key])), TABLE_NUMK[key][0], TABLE_NUMK[key][1])
+            : defaults[key];
+        const table = {
+            show: raw.show === true,
+            package: raw.package === "state" ? "state" : "classic",
+            agg: ["zero", "one", "full"].includes(raw.agg) ? raw.agg : defaults.agg,
+            corner: TABLE_CORNERS.includes(raw.corner) ? raw.corner : defaults.corner,
+            offsetX: number("offsetX"),
+            offsetY: number("offsetY"),
+            fontSize: number("fontSize"),
+        };
+        if (defaults.rows) {
+            const rawRows = raw.rows && typeof raw.rows === "object" && !Array.isArray(raw.rows) ? raw.rows : {};
+            table.rows = {};
+            for (const id of LEVEL_ROW_IDS) table.rows[id] = typeof rawRows[id] === "boolean" ? rawRows[id] : true;
+        }
+        return table;
+    }
+
+    /** Normalize the table settings of one chart. Returns true when something had to be repaired. */
+    function normalizeTableConfig(chart) {
+        const defaults = tableDefaults();
+        const raw = chart.tables && typeof chart.tables === "object" && !Array.isArray(chart.tables) ? chart.tables : {};
+        const normalized = {
+            maxChange: normalizedTable(defaults.maxChange, raw.maxChange),
+            levels: normalizedTable(defaults.levels, raw.levels),
+        };
+        const changed = JSON.stringify(normalized) !== JSON.stringify(chart.tables);
+        chart.tables = normalized;
+        return changed;
+    }
+
     function chartDefaults() {
         const profiles = {};
         for (const [id, d] of Object.entries(PROFILE_DEFS)) profiles[id] = clone(d.def);
@@ -199,6 +261,7 @@
             labelSide: "left", // Legacy fallback for major-label placement.
             showGexMagnitude: false,
             profiles, levels,
+            tables: tableDefaults(),
             majorStyles: {},
             quantProfileTemplate: null,
             expirations: { symbol: "SPX", defaultsVersion: EXPIRY_DEFAULTS_VERSION, defaultsInitialized: false, selections: {}, applied: {} },
@@ -296,7 +359,13 @@
             const verticalOffsetPx = Number(profile.verticalOffsetPx);
             const normalizedVerticalOffsetPx = Number.isFinite(verticalOffsetPx) ? clamp(verticalOffsetPx, -5000, 5000) : 0;
             if (profile.verticalOffsetPx !== normalizedVerticalOffsetPx) { profile.verticalOffsetPx = normalizedVerticalOffsetPx; changed = true; }
+            for (const key of ["filterTop", "filterBottom"]) {
+                const filterValue = Number(profile[key]);
+                const normalizedFilter = Number.isFinite(filterValue) ? Math.floor(clamp(filterValue, 0, 1000)) : 0;
+                if (profile[key] !== normalizedFilter) { profile[key] = normalizedFilter; changed = true; }
+            }
         }
+        if (normalizeTableConfig(chart)) changed = true;
         const rawManual = chart.manualConversion;
         const rawMultiplier = Number(rawManual?.multiplier);
         const rawAdditive = Number(rawManual?.additive);
@@ -784,7 +853,11 @@
             if (msg.conv) populateAutomaticConversionFields(i);
             const t = d.ts ? new Date(d.ts * 1000).toLocaleTimeString() : "—";
             const conv = msg.conv ? `  ·  ${msg.conv.contract} x${(+msg.conv.multiplier).toFixed(4)} ${msg.conv.additive >= 0 ? "+" : ""}${(+msg.conv.additive).toFixed(2)}` : "";
-            statusByChart[i] = `OK ${t}${conv}`;
+            const tableNotes = [["t_maxchange", "Max Change"], ["t_levels", "Levels"]]
+                .filter(([id]) => d.sources[id]?.error)
+                .map(([id, label]) => `  ·  ${label} table: ${String(d.sources[id].error).replace(/^.*?(HTTP \d+)/, "$1").slice(0, 60)}`)
+                .join("");
+            statusByChart[i] = `OK ${t}${conv}${tableNotes}`;
         } else {
             // Do not leave stale or unconverted data painted after a failed update.
             delete dataByChart[i];
@@ -962,6 +1035,17 @@
             .map((id) => ({ id, agg: chart.profiles[id].agg }));
     }
 
+    /** The data each shown table needs. A hidden table requests nothing. */
+    function tableDataConfig(chart) {
+        const result = { maxChange: null, levels: null };
+        if (!chart.standardEnabled || !chart.tables) return result;
+        for (const key of ["maxChange", "levels"]) {
+            const table = chart.tables[key];
+            if (table?.show) result[key] = { package: table.package, agg: table.agg };
+        }
+        return result;
+    }
+
     function sendConfig(force = false) {
         ensurePort();
         const charts = {};
@@ -981,6 +1065,7 @@
                 showGexMagnitude: c.standardEnabled && c.showGexMagnitude,
                 profiles,
                 majors: c.standardEnabled ? latestMajorSources(c) : [],
+                tables: tableDataConfig(c),
                 expirations,
             };
         }
@@ -1056,6 +1141,10 @@
     // ---- Draw ----
     function loop() { if (dirty) { dirty = false; draw(); } requestAnimationFrame(loop); }
     function draw() {
+        tableRects = {};
+        try { drawScene(); } finally { syncTableHitAreas(); }
+    }
+    function drawScene() {
         if (!ctx) return;
         ctx.clearRect(0, 0, innerWidth, innerHeight);
         if (!tvState) return;
@@ -1083,6 +1172,7 @@
                 }
                 drawMajorHistory(cfg, m, conv);
                 if (data) drawMajors(cfg, data, m, conv);
+                if (data) drawTables(cfg, data, m, conv);
             }
             if (cfg.quantEnabled) drawExpirationProfiles(cfg, m, conv);
 
@@ -1300,13 +1390,43 @@
         }
     }
 
+    // Largest-bars filter: keep only the N largest positive and the N largest negative bars of the
+    // whole profile (not only the visible part). 0 keeps every bar of that side. Returns null when
+    // no filter is set. The result is cached per data snapshot, since the strikes array is replaced
+    // by every update.
+    const filterCache = new WeakMap();
+    function largestBarsFilter(strikes, idx, topN, bottomN) {
+        const top = Math.max(0, Math.floor(Number(topN)) || 0);
+        const bottom = Math.max(0, Math.floor(Number(bottomN)) || 0);
+        if (top <= 0 && bottom <= 0) return null;
+        const cacheKey = `${idx}|${top}|${bottom}`;
+        let perSnapshot = filterCache.get(strikes);
+        if (!perSnapshot) { perSnapshot = new Map(); filterCache.set(strikes, perSnapshot); }
+        if (perSnapshot.has(cacheKey)) return perSnapshot.get(cacheKey);
+
+        const positives = [], negatives = [];
+        for (const s of strikes) {
+            const v = Number(s[idx]) || 0;
+            if (v > 0) positives.push(s); else if (v < 0) negatives.push(s);
+        }
+        positives.sort((a, b) => Number(b[idx]) - Number(a[idx]));
+        negatives.sort((a, b) => Number(a[idx]) - Number(b[idx]));
+        const kept = new Set();
+        for (const s of (top > 0 ? positives.slice(0, top) : positives)) kept.add(s);
+        for (const s of (bottom > 0 ? negatives.slice(0, bottom) : negatives)) kept.add(s);
+        perSnapshot.set(cacheKey, kept);
+        return kept;
+    }
+
     function drawProfile(chart, cfg, strikes, def, m, conv, originOverride = null) {
         if (!cfg.show || !strikes || !strikes.length) return;
         const idx = def.idx, pIdx = def.priorIdx;
         const withPriors = pIdx != null && cfg.priors;
+        const kept = largestBarsFilter(strikes, idx, cfg.filterTop, cfg.filterBottom);
 
         let maxAbs = 0;
         for (const s of strikes) {
+            if (kept && !kept.has(s)) continue;
             const v = Math.abs(Number(s[idx]) || 0); if (v > maxAbs) maxAbs = v;
             if (withPriors && Array.isArray(s[pIdx])) for (const pv of s[pIdx]) { const a = Math.abs(Number(pv) || 0); if (a > maxAbs) maxAbs = a; }
         }
@@ -1320,6 +1440,7 @@
         ctx.setLineDash([]);
         ctx.lineWidth = cfg.thickness;
         for (const s of strikes) {
+            if (kept && !kept.has(s)) continue;
             const y = priceToY(scalePrice(Number(s[0]), conv), m) - (Number(cfg.verticalOffsetPx) || 0);
             if (!Number.isFinite(y) || y < top || y > bottom) continue;
 
@@ -1394,6 +1515,235 @@
         }
     }
 
+    // ---- Tables (Max Change, Levels) ----
+    // Drawn on the canvas like the profiles. A transparent hit area above each table lets the user
+    // drag it with the mouse; the corner and offsets are updated from the final position.
+    let tableRects = {};                // chart idx → { maxChange: rect, levels: rect } of the last draw
+    const tableHitEls = {};             // "idx:name" → drag handle element
+    let tableDrag = null;
+
+    const TABLE_COLORS = { bg: "rgba(0, 0, 0, 0.67)", white: "#FFFFFF", green: "#00DC00", red: "#FF4646", orange: "#FFA000", blue: "#78B4FF" };
+
+    function isBillionsTicker(symbol) {
+        return ["SPX", "ES_SPX", "NDX", "NQ_NDX"].includes(String(symbol || "").trim().toUpperCase());
+    }
+
+    /** Net GEX like the website: index tickers value / 1000, other tickers the raw value. */
+    function fmtNetGex(value, decimals, symbol) {
+        const v = Number(value);
+        if (!Number.isFinite(v)) return "—";
+        return isBillionsTicker(symbol) ? (v / 1000).toFixed(4) : v.toFixed(decimals);
+    }
+
+    function tableOrigin(cfg, m, w, h) {
+        const right = cfg.corner.endsWith("right"), bottom = cfg.corner.startsWith("bottom");
+        let x = right ? m.paneLeft + m.paneW - w - cfg.offsetX : m.paneLeft + cfg.offsetX;
+        let y = bottom ? m.paneTop + m.H - h - cfg.offsetY : m.paneTop + cfg.offsetY;
+        x = clamp(x, m.paneLeft, Math.max(m.paneLeft, m.paneLeft + m.paneW - w));
+        y = clamp(y, m.paneTop, Math.max(m.paneTop, m.paneTop + m.H - h));
+        return { x, y };
+    }
+
+    /**
+     * Paint one table box. Each row is { header, label, value, labelColor, valueColor }; headers use the
+     * bold font. A "columns" table has label, strike and value; the others have label and a right-aligned value.
+     */
+    function paintTable(cfg, m, rows, title) {
+        const size = clamp(Number(cfg.fontSize) || 12, 8, 40);
+        const lineH = Math.round(size * 1.3);
+        const gap = 12;
+        const boldFont = `bold ${size}px Arial, sans-serif`;
+        const plainFont = `${size}px Arial, sans-serif`;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "left";
+
+        let titleW = 0, labelW = 0, middleW = 0, valueW = 0, headerW = 0;
+        let hasMiddle = false;
+        if (title) { ctx.font = boldFont; titleW = ctx.measureText(title).width; }
+        for (const row of rows) {
+            if (row.header) { ctx.font = boldFont; headerW = Math.max(headerW, ctx.measureText(row.label).width); continue; }
+            ctx.font = plainFont;
+            labelW = Math.max(labelW, ctx.measureText(row.label).width);
+            valueW = Math.max(valueW, ctx.measureText(row.value).width);
+            if (row.middle != null) { hasMiddle = true; middleW = Math.max(middleW, ctx.measureText(row.middle).width); }
+        }
+        const bodyW = labelW + gap + (hasMiddle ? middleW + gap : 0) + valueW;
+        const w = Math.ceil(Math.max(titleW, headerW, bodyW) + 14);
+        let h = 12;
+        if (title) h += lineH + 4;
+        rows.forEach((row, i) => { h += row.header ? lineH + 4 + (i > 0 ? 6 : 0) : lineH + 2; });
+        h = Math.ceil(h);
+
+        const { x, y } = tableOrigin(cfg, m, w, h);
+        ctx.fillStyle = TABLE_COLORS.bg;
+        ctx.fillRect(x, y, w, h);
+
+        let ty = y + 6;
+        if (title) { ctx.font = boldFont; ctx.fillStyle = TABLE_COLORS.white; ctx.fillText(title, x + 7, ty); ty += lineH + 4; }
+        const labelX = x + 7, middleX = labelX + labelW + gap, rightX = x + w - 7;
+        rows.forEach((row, i) => {
+            if (row.header) {
+                if (i > 0) ty += 6;
+                ctx.font = boldFont; ctx.fillStyle = row.labelColor || TABLE_COLORS.white;
+                ctx.fillText(row.label, labelX, ty);
+                ty += lineH + 4;
+                return;
+            }
+            ctx.font = plainFont;
+            ctx.fillStyle = row.labelColor || TABLE_COLORS.white;
+            ctx.fillText(row.label, labelX, ty);
+            if (row.middle != null) {
+                ctx.fillStyle = row.middleColor || TABLE_COLORS.green;
+                ctx.fillText(row.middle, middleX, ty);
+            }
+            ctx.fillStyle = row.valueColor || TABLE_COLORS.white;
+            ctx.textAlign = hasMiddle ? "left" : "right";
+            ctx.fillText(row.value, hasMiddle ? middleX + middleW + gap : rightX, ty);
+            ctx.textAlign = "left";
+            ty += lineH + 2;
+        });
+        return { x, y, w, h };
+    }
+
+    function drawTables(chart, data, m, conv) {
+        const tables = chart.tables;
+        if (!tables) return;
+        const rects = {};
+        const maxChange = tables.maxChange;
+        const levels = tables.levels;
+
+        const maxSource = maxChange?.show ? data.sources.t_maxchange : null;
+        if (maxSource && !maxSource.error && Array.isArray(maxSource.rows) && maxSource.rows.length >= 5) {
+            const billions = isBillionsTicker(chart.symbol);
+            const labels = ["1 min", "5 min", "10 min", "15 min", "30 min"];
+            const rows = maxSource.rows.slice(0, 5).map(([strike, value], i) => {
+                const hasValue = Number.isFinite(value);
+                return {
+                    label: labels[i],
+                    labelColor: TABLE_COLORS.blue,
+                    middle: Number.isFinite(strike) ? scalePrice(strike, conv).toFixed(2) : "—",
+                    middleColor: TABLE_COLORS.green,
+                    // Values arrive in millions (MM); index tickers are shown in billions like the website.
+                    value: !hasValue ? "—" : billions ? `${(value / 1000).toFixed(4)}Bn` : `${value.toFixed(2)}MM`,
+                    valueColor: hasValue && value < 0 ? TABLE_COLORS.red : TABLE_COLORS.green,
+                };
+            });
+            rects.maxChange = paintTable(maxChange, m, rows, "max change gex");
+        }
+
+        const levelSource = levels?.show ? data.sources.t_levels : null;
+        if (levelSource && !levelSource.error && levelSource.levels) {
+            const lv = levelSource.levels;
+            const show = levels.rows || {};
+            const price = (raw) => scalePrice(Number(raw), conv).toFixed(2);
+            const positive = (raw) => Number.isFinite(Number(raw)) && Number(raw) !== 0;
+            const net = (raw, decimals) => ({
+                label: "net gex",
+                value: fmtNetGex(raw, decimals, chart.symbol),
+                valueColor: Number(raw) > 0 ? TABLE_COLORS.green : TABLE_COLORS.red,
+            });
+            const volumeRows = [];
+            if (show.zeroGamma && positive(lv.zeroGamma)) volumeRows.push({ label: "zero gamma", labelColor: TABLE_COLORS.orange, value: price(lv.zeroGamma) });
+            if (show.majorPosVol && positive(lv.majorPosVol)) volumeRows.push({ label: "major positive", labelColor: TABLE_COLORS.green, value: price(lv.majorPosVol) });
+            if (show.majorNegVol && positive(lv.majorNegVol)) volumeRows.push({ label: "major negative", labelColor: TABLE_COLORS.red, value: price(lv.majorNegVol) });
+            if (show.netGexVol && Number.isFinite(Number(lv.netGexVol))) volumeRows.push(net(lv.netGexVol, 4));
+            const rows = [];
+            if (volumeRows.length) rows.push({ header: true, label: "volume" }, ...volumeRows);
+            if (levels.package === "classic") {
+                const oiRows = [];
+                if (show.majorPosOi && positive(lv.majorPosOi)) oiRows.push({ label: "major positive", labelColor: TABLE_COLORS.green, value: price(lv.majorPosOi) });
+                if (show.majorNegOi && positive(lv.majorNegOi)) oiRows.push({ label: "major negative", labelColor: TABLE_COLORS.red, value: price(lv.majorNegOi) });
+                if (show.netGexOi && Number.isFinite(Number(lv.netGexOi))) oiRows.push(net(lv.netGexOi, 2));
+                if (oiRows.length) rows.push({ header: true, label: "open interest" }, ...oiRows);
+            }
+            if (rows.length) rects.levels = paintTable(levels, m, rows, "");
+        }
+
+        if (Object.keys(rects).length) tableRects[m.idx] = rects;
+    }
+
+    // ---- Dragging ----
+    function createTableHit(idx, name) {
+        const el = document.createElement("div");
+        el.className = "iof-table-hit";
+        el.title = "Drag to move";
+        el.addEventListener("mousedown", (event) => {
+            if (!event.isTrusted || event.button !== 0) return;
+            const rect = tableRects[idx]?.[name];
+            const map = tvState?.maps.find((candidate) => candidate.idx === idx);
+            if (!rect || !map) return;
+            event.preventDefault();
+            event.stopPropagation();
+            tableDrag = { idx, name, startX: event.clientX, startY: event.clientY, rect: { ...rect }, map };
+            el.classList.add("dragging");
+        });
+        document.documentElement.appendChild(el);
+        return el;
+    }
+
+    function rectsOverlap(a, b) {
+        return a.x < b.left + b.w && a.x + a.w > b.left && a.y < b.top + b.h && a.y + a.h > b.top;
+    }
+
+    function syncTableHitAreas() {
+        const live = new Set();
+        const occlusions = tvState?.occlusions || [];
+        for (const [idx, rects] of Object.entries(tableRects)) {
+            for (const [name, rect] of Object.entries(rects)) {
+                // Never sit on top of a TradingView dialog or menu.
+                if (occlusions.some((o) => rectsOverlap(rect, o))) continue;
+                const key = `${idx}:${name}`;
+                live.add(key);
+                const el = tableHitEls[key] || (tableHitEls[key] = createTableHit(Number(idx), name));
+                el.style.left = `${rect.x}px`;
+                el.style.top = `${rect.y}px`;
+                el.style.width = `${rect.w}px`;
+                el.style.height = `${rect.h}px`;
+                el.style.display = "block";
+            }
+        }
+        for (const [key, el] of Object.entries(tableHitEls)) if (!live.has(key)) el.style.display = "none";
+    }
+
+    /** Convert a dropped position to the nearest corner and offsets, so the table follows pane resizes. */
+    function snapTableToCorner(cfg, map, x, y, w, h) {
+        const right = x + w / 2 > map.paneLeft + map.paneW / 2;
+        const bottom = y + h / 2 > map.paneTop + map.H / 2;
+        cfg.corner = `${bottom ? "bottom" : "top"}-${right ? "right" : "left"}`;
+        cfg.offsetX = clamp(Math.round(right ? map.paneLeft + map.paneW - (x + w) : x - map.paneLeft), 0, 5000);
+        cfg.offsetY = clamp(Math.round(bottom ? map.paneTop + map.H - (y + h) : y - map.paneTop), 0, 5000);
+    }
+
+    /** Reflect a dragged table's new position in the settings panel, if it is open. */
+    function refreshTableInputs(name, cfg) {
+        if (!bodyEl) return;
+        for (const key of ["corner", "offsetX", "offsetY"]) {
+            const el = bodyEl.querySelector(`[data-tbl="${name}"][data-k="${key}"]`);
+            if (el) el.value = cfg[key];
+        }
+    }
+
+    window.addEventListener("mousemove", (event) => {
+        if (!tableDrag) return;
+        const { idx, name, rect, map } = tableDrag;
+        const cfg = config.charts[idx]?.tables?.[name];
+        if (!cfg) return;
+        const x = clamp(rect.x + event.clientX - tableDrag.startX, map.paneLeft, Math.max(map.paneLeft, map.paneLeft + map.paneW - rect.w));
+        const y = clamp(rect.y + event.clientY - tableDrag.startY, map.paneTop, Math.max(map.paneTop, map.paneTop + map.H - rect.h));
+        snapTableToCorner(cfg, map, x, y, rect.w, rect.h);
+        dirty = true;
+        saveConfig();
+    }, true);
+    window.addEventListener("mouseup", () => {
+        if (!tableDrag) return;
+        const { idx, name } = tableDrag;
+        tableHitEls[`${idx}:${name}`]?.classList.remove("dragging");
+        const cfg = config.charts[idx]?.tables?.[name];
+        tableDrag = null;
+        if (cfg) { refreshTableInputs(name, cfg); saveConfig(); }
+        dirty = true;
+    }, true);
+
     // ---- Panel ----
     let panel, bodyEl, statusEl;
     function buildPanelShell() {
@@ -1436,6 +1786,8 @@
                     <div class="iof-fr"><span>Max width px</span><input type="number" data-pf="${id}" data-k="widthPx"></div>
                     <div class="iof-fr"><span>Bar thickness</span><input type="number" data-pf="${id}" data-k="thickness"></div>
                     <div class="iof-fr"><span>Vertical offset px (+ up)</span><input type="number" data-pf="${id}" data-k="verticalOffsetPx" min="-5000" max="5000" step="1"></div>
+                    <div class="iof-fr"><span title="Keep only the N largest positive bars. 0 = all bars.">Largest positive bars (0 = all)</span><input type="number" data-pf="${id}" data-k="filterTop" min="0" max="1000" step="1"></div>
+                    <div class="iof-fr"><span title="Keep only the N largest negative bars. 0 = all bars.">Largest negative bars (0 = all)</span><input type="number" data-pf="${id}" data-k="filterBottom" min="0" max="1000" step="1"></div>
                     <div class="iof-fr"><span>Positive</span><input type="color" data-pf="${id}" data-k="posColor"></div>
                     <div class="iof-fr"><span>Negative</span><input type="color" data-pf="${id}" data-k="negColor"></div>
                 </div>`;
@@ -1445,6 +1797,28 @@
                 <div class="iof-priors">${d.priorLabels.map((lb, i) => `<div class="iof-fr"><span>${lb}</span><input type="color" data-pf="${id}" data-pc="${i}"></div>`).join("")}</div>`;
         }
         return `${h}</div></details>`;
+    }
+
+    function tableSectionHtml(name, label) {
+        const levels = name === "levels";
+        const rows = levels ? `<div class="iof-table-rows">${LEVEL_ROW_IDS.map((id) =>
+            `<label class="iof-check"><input type="checkbox" data-tbl-row="${id}"><span>${esc(LEVEL_ROW_DEFS[id])}</span></label>`).join("")}</div>` : "";
+        return `<details class="iof-settings-group">
+            <summary>${esc(label)}</summary>
+            <div class="iof-settings-group-body">
+                <label class="iof-check"><input type="checkbox" data-tbl="${name}" data-k="show"><span>Show ${esc(label)}</span></label>
+                <div class="iof-table-note">Drag the table on the chart to move it. ${levels ? "Open interest rows need the Classic package." : "Values follow the Package and Expiry below."}</div>
+                <div class="iof-g2">
+                    <div class="iof-fr"><span>Package</span><select data-tbl="${name}" data-k="package"><option value="classic">Classic</option><option value="state">State</option></select></div>
+                    <div class="iof-fr"><span>Expiry</span><select data-tbl="${name}" data-k="agg"><option value="zero">0DTE</option><option value="one">1DTE</option><option value="full">Full</option></select></div>
+                    <div class="iof-fr"><span>Corner</span><select data-tbl="${name}" data-k="corner"><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="bottom-left">Bottom left</option><option value="bottom-right">Bottom right</option></select></div>
+                    <div class="iof-fr"><span>Font size</span><input type="number" data-tbl="${name}" data-k="fontSize" min="8" max="40" step="1"></div>
+                    <div class="iof-fr"><span>Offset X px</span><input type="number" data-tbl="${name}" data-k="offsetX" min="0" max="5000" step="1"></div>
+                    <div class="iof-fr"><span>Offset Y px</span><input type="number" data-tbl="${name}" data-k="offsetY" min="0" max="5000" step="1"></div>
+                </div>
+                ${rows}
+            </div>
+        </details>`;
     }
 
     function settingsTabsHtml() {
@@ -1635,6 +2009,8 @@
                     <div class="iof-fr"><span>Max width px</span><input type="number" data-exp-width="${id}" min="10" max="2000" value="${profile.widthPx}"></div>
                     <div class="iof-fr"><span>Bar thickness</span><input type="number" data-exp-thickness="${id}" min="1" max="20" value="${profile.thickness}"></div>
                     <div class="iof-fr"><span>Vertical offset px (+ up)</span><input type="number" data-exp-vertical-offset="${id}" min="-5000" max="5000" step="1" value="${profile.verticalOffsetPx}"></div>
+                    <div class="iof-fr"><span title="Keep only the N largest positive bars. 0 = all bars.">Largest positive bars (0 = all)</span><input type="number" data-exp-filter-top="${id}" min="0" max="1000" step="1" value="${profile.filterTop}"></div>
+                    <div class="iof-fr"><span title="Keep only the N largest negative bars. 0 = all bars.">Largest negative bars (0 = all)</span><input type="number" data-exp-filter-bottom="${id}" min="0" max="1000" step="1" value="${profile.filterBottom}"></div>
                     <div class="iof-fr"><span>Positive</span><input type="color" data-exp-pos-color="${id}" value="${profile.posColor}"></div>
                     <div class="iof-fr"><span>Negative</span><input type="color" data-exp-neg-color="${id}" value="${profile.negColor}"></div>
                 </div>
@@ -1774,6 +2150,16 @@
                 saveConfig();
             }));
         });
+        for (const [attribute, key] of [["data-exp-filter-top", "filterTop"], ["data-exp-filter-bottom", "filterBottom"]]) {
+            bodyEl.querySelectorAll(`[${attribute}]`).forEach((input) => {
+                const profile = selection.profiles[input.getAttribute(attribute)];
+                input.addEventListener("input", trusted(() => {
+                    const value = parseFloat(input.value);
+                    profile[key] = Number.isFinite(value) ? Math.floor(clamp(value, 0, 1000)) : 0;
+                    saveConfig();
+                }));
+            });
+        }
         bodyEl.querySelectorAll("[data-exp-pos-color]").forEach((input) => {
             const profile = selection.profiles[input.dataset.expPosColor];
             input.addEventListener("input", trusted(() => { profile.posColor = input.value; saveConfig(); }));
@@ -1888,7 +2274,10 @@
                     <label class="iof-check"><input type="checkbox" id="iof-show-gex-magnitude" ${c.showGexMagnitude ? "checked" : ""}><span>Show GEX magnitude</span></label>
                     <div id="iof-majors">${majorsHtml}</div>
                 </div>
-            </details>`;
+            </details>
+
+            ${tableSectionHtml("maxChange", "Max Change table")}
+            ${tableSectionHtml("levels", "Levels table")}`;
 
         const $ = (s) => bodyEl.querySelector(s);
         statusEl = $("#iof-status");
@@ -1936,6 +2325,27 @@
                     sendConfig();
                 }
             }));
+        });
+        bodyEl.querySelectorAll("[data-tbl][data-k]").forEach((el) => {
+            const name = el.dataset.tbl, k = el.dataset.k;
+            const table = c.tables[name];
+            if (el.type === "checkbox") el.checked = !!table[k]; else el.value = table[k];
+            const evt = (el.type === "checkbox" || el.tagName === "SELECT") ? "change" : "input";
+            el.addEventListener(evt, trusted(() => {
+                if (el.type === "checkbox") table[k] = el.checked;
+                else if (TABLE_NUMK[k]) {
+                    const parsed = parseFloat(el.value);
+                    table[k] = Number.isFinite(parsed) ? clamp(Math.round(parsed), TABLE_NUMK[k][0], TABLE_NUMK[k][1]) : tableDefaults()[name][k];
+                } else table[k] = el.value;
+                saveConfig();
+                // Showing a table, or changing the data it uses, asks the companion for the right requests.
+                if (k === "show" || k === "package" || k === "agg") sendConfig();
+            }));
+        });
+        bodyEl.querySelectorAll("[data-tbl-row]").forEach((el) => {
+            const id = el.dataset.tblRow;
+            el.checked = !!c.tables.levels.rows[id];
+            el.addEventListener("change", trusted(() => { c.tables.levels.rows[id] = el.checked; saveConfig(); }));
         });
         bodyEl.querySelectorAll("[data-pf][data-pc]").forEach((el) => {
             const pf = el.dataset.pf, i = +el.dataset.pc;

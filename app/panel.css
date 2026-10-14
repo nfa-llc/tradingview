@@ -206,3 +206,10 @@
     padding-top: 9px; border-top: 1px solid #2A3547;
 }
 #iof-panel #iof-ticker-refresh { min-width: 110px; }
+
+/* Max Change and Levels tables: transparent drag handle above the table drawn on the canvas.
+   Kept below the settings panel (z-index 2147483001). */
+.iof-table-hit { position: fixed; z-index: 2147483000; display: none; background: transparent; cursor: move; }
+.iof-table-hit.dragging { outline: 1px dashed rgba(120, 180, 255, 0.8); }
+.iof-table-note { margin: 2px 0 6px; color: #93A4BC; font-size: 10.5px; line-height: 1.3; }
+.iof-table-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 8px; }
