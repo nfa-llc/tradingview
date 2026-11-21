@@ -379,7 +379,7 @@ function normalizedTickerResponse(value, includeFutures) {
 
 function updateQuantTickerSet(normalResponse, quantResponse) {
     if (!quantResponse) return;
-    // Match legacy-backend's runtime registry: a symbol already present in the
+    // Match the server's ticker registry: a symbol already present in the
     // normal universe stays REST-capable; only supplemental Quant symbols are
     // marked PubSub-only.
     const normal = new Set([...(normalResponse?.stocks || []), ...(normalResponse?.indexes || [])]);
